@@ -5,11 +5,15 @@
 用于调用Node.js脚本进行纯文字聊天，不涉及图片
 """
 
-import subprocess
 import json
-import sys
 import os
-import time
+from doubao_common import (
+    execute_node_script,
+    parse_json_output,
+    validate_file_path,
+    handle_script_result,
+    format_headless_param
+)
 
 class DoubaoTextChat:
     def __init__(self, node_script_path):
@@ -17,9 +21,7 @@ class DoubaoTextChat:
         初始化豆包纯文字聊天类
         :param node_script_path: Node.js脚本路径
         """
-        self.node_script_path = node_script_path
-        if not os.path.exists(node_script_path):
-            raise FileNotFoundError(f"Node.js脚本不存在: {node_script_path}")
+        self.node_script_path = validate_file_path(node_script_path)
     
     def send_message(self, message, headless=True):
         """
@@ -35,62 +37,28 @@ class DoubaoTextChat:
         
         try:
             # 调用Node.js脚本
-            cmd = [
-                "node", 
-                self.node_script_path,
+            args = [
                 message,
                 "--headless",
-                str(headless).lower()  # 将布尔值转换为字符串并转为小写
+                format_headless_param(headless)
             ]
             
             # 执行命令并获取输出
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=300  # 延长超时时间为5分钟
-            )
+            result = execute_node_script(self.node_script_path, args, timeout=300)
             
-            if result.returncode != 0:
-                print(f"Node.js脚本执行失败，返回码: {result.returncode}")
-                print(f"错误输出: {result.stderr}")
-                print(f"标准输出: {result.stdout}")
+            # 处理执行结果
+            output = handle_script_result(result)
+            if output is None:
                 return None
             
-            print(f"完整输出: {result.stdout}")
+            print(f"完整输出: {output}")
             
-            # 解析JSON输出（从输出中提取JSON部分）
-            try:
-                # 找到JSON的起始位置（第一个{）
-                json_start = result.stdout.find('{')
-                if json_start == -1:
-                    print("未找到JSON数据")
-                    return None
-                
-                # 找到JSON的结束位置（最后一个}）
-                json_end = result.stdout.rfind('}') + 1
-                if json_end <= json_start:
-                    print("未找到完整的JSON数据")
-                    return None
-                
-                # 提取JSON部分
-                json_str = result.stdout[json_start:json_end]
-                print(f"提取的JSON字符串: {json_str}")
-                
-                # 解析JSON
-                output_data = json.loads(json_str)
+            # 解析JSON输出
+            output_data = parse_json_output(output)
+            if output_data:
                 print(f"解析后的JSON数据: {output_data}")
-                return output_data
-            except json.JSONDecodeError as e:
-                print(f"JSON解析失败: {e}")
-                print(f"错误位置: {e.pos}")
-                print(f"原始输出: {result.stdout}")
-                print(f"JSON部分: {json_str}")
-                return None
-                
-        except subprocess.TimeoutExpired:
-            print("脚本执行超时")
-            return None
+            return output_data
+            
         except Exception as e:
             print(f"调用脚本时发生错误: {e}")
             return None
@@ -113,12 +81,12 @@ def main():
     主函数，用于命令行调用
     """
     import argparse
+    from doubao_common import get_default_node_script
     
     parser = argparse.ArgumentParser(description="豆包纯文字聊天工具")
     parser.add_argument("message", help="要发送的消息")
-    # 获取脚本所在目录的绝对路径
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    default_node_script = os.path.join(script_dir, "doubao_chat_bot.js")
+    # 获取默认Node.js脚本路径
+    default_node_script = get_default_node_script("doubao_chat_bot.js")
     parser.add_argument("--node_script", default=default_node_script, help="Node.js脚本路径")
     parser.add_argument("--headless", type=lambda x: x.lower() in ['true', 'yes', '1'], default=True, help="是否使用无头模式（不显示浏览器界面），可选值：true/false/yes/no/1/0")
     

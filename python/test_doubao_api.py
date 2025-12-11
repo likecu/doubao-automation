@@ -24,15 +24,15 @@ class TestDoubaoAPI(unittest.TestCase):
     
     def setUp(self):
         """设置测试环境"""
-        self.test_image_path = os.path.join(os.path.dirname(__file__), 'image.png')
+        self.test_image_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'image.png')
         # 创建一个临时测试图片文件
         if not os.path.exists(self.test_image_path):
             with open(self.test_image_path, 'w') as f:
                 f.write('test image content')
         
-        # 脚本路径
-        self.test_upload_script = os.path.join(os.path.dirname(__file__), 'test_upload_image.js')
-        self.chat_bot_script = os.path.join(os.path.dirname(__file__), 'doubao_chat_bot.js')
+        # 脚本路径，现在位于js目录下
+        self.test_upload_script = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'js', 'test_upload_image.js')
+        self.chat_bot_script = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'js', 'doubao_chat_bot.js')
         
     def tearDown(self):
         """清理测试环境"""

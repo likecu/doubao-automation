@@ -147,11 +147,13 @@ class DoubaoYesNo:
             print(f"向豆包提问: {full_question}")
         
         # 图片识别需要使用专门的test_upload_image.js脚本
-        # 获取脚本所在目录的绝对路径
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        test_upload_script = os.path.join(script_dir, "test_upload_image.js")
-        # 创建专门用于图片识别的OCR实例
+        from doubao_common import get_default_node_script
         from doubao_ocr import DoubaoOCR
+        
+        # 获取默认的test_upload_image.js脚本路径
+        test_upload_script = get_default_node_script("test_upload_image.js")
+        
+        # 创建专门用于图片识别的OCR实例
         ocr = DoubaoOCR(test_upload_script)
         # 调用OCR获取回答，debug模式下显示浏览器界面
         result = ocr.recognize_image(image_path, full_question, headless=not debug)
@@ -196,13 +198,14 @@ def main():
     """
     主函数，用于命令行调用
     """
+    from doubao_common import get_default_node_script
+    
     parser = argparse.ArgumentParser(description="豆包是/否判断工具")
     parser.add_argument("--question", required=True, help="判断的问题")
     parser.add_argument("--file", help="文件路径")
     parser.add_argument("--image", help="图片路径")
-    # 获取脚本所在目录的绝对路径
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    default_node_script = os.path.join(script_dir, "doubao_chat_bot.js")
+    # 获取默认Node.js脚本路径
+    default_node_script = get_default_node_script("doubao_chat_bot.js")
     parser.add_argument("--node_script", default=default_node_script, help="Node.js脚本路径")
     parser.add_argument("--debug", action="store_true", help="输出调试信息")
     

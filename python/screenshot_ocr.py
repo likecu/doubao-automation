@@ -92,12 +92,13 @@ def main():
     """
     主函数，用于命令行调用
     """
+    from doubao_common import get_default_node_script
+    
     parser = argparse.ArgumentParser(description="豆包屏幕截图OCR识别工具")
     parser.add_argument("--output", help="结果输出文件路径")
     parser.add_argument("--question", default="图里有什么内容？", help="向豆包提问的问题")
-    # 获取脚本所在目录的绝对路径
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    default_node_script = os.path.join(script_dir, "test_upload_image.js")
+    # 获取默认Node.js脚本路径
+    default_node_script = get_default_node_script("test_upload_image.js")
     parser.add_argument("--node_script", default=default_node_script, help="Node.js脚本路径")
     
     args = parser.parse_args()
