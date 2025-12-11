@@ -35,8 +35,8 @@ class DoubaoBrowserServer {
         this.browser = await puppeteer.launch({
             headless: headless,
             defaultViewport: null,
-            slowMo: 100, // 放慢操作速度，方便调试
-            devtools: true, // 打开开发者工具，方便调试
+            // slowMo: 100, // 加快操作速度，移除调试延迟
+            devtools: false, // 关闭开发者工具，加快速度
             args: [
                 '--start-maximized',
                 '--disable-blink-features=AutomationControlled',
@@ -382,214 +382,9 @@ class DoubaoBrowserServer {
     // 处理登录和验证码
     async handleLoginAndCaptcha(page) {
         try {
-            // 检查是否需要登录或验证码
-            const { needLogin } = await this.checkLoginOrCaptcha(page);
-            
-            // 如果不需要登录，直接返回
-            if (!needLogin) {
-                console.log('不需要登录，直接使用');
-                return true;
-            }
-            
-            console.log('需要登录，正在处理...');
-            
-            // 如果是无头模式，需要重启浏览器为有头模式
-            if (this.headless) {
-                console.log('切换到有头模式，显示登录二维码...');
-                
-                // 关闭当前浏览器
-                await this.browser.close();
-                this.browser = null;
-                
-                // 重新启动为有头模式
-                await this.init(false);
-                
-                // 创建新页面，替换原页面
-                const newPage = await this.browser.newPage();
-                
-                // 复制原页面的反检测措施
-                await this.addAntiDetection(newPage);
-                
-                // 导航到豆包页面
-                await newPage.goto(this.baseUrl, {
-                    waitUntil: 'networkidle2',
-                    timeout: 60000
-                });
-                
-                // 返回新页面，让后续逻辑处理
-                return newPage;
-            }
-            
-            // 已经是有头模式，尝试自动点击登录按钮
-            console.log('=== 正在自动处理登录流程 ===');
-            console.log('1. 尝试查找并点击登录按钮');
-            
-            // 查找并点击登录按钮
-            const loginButtonSelectors = [
-                'button[class*="login"]',
-                'a[href*="login"]',
-                '[class*="login"]',
-                'button:contains("登录")',
-                'a:contains("登录")'
-            ];
-            
-            let loginButtonFound = false;
-            for (const selector of loginButtonSelectors) {
-                try {
-                    const button = await page.$(selector);
-                    if (button) {
-                        console.log(`找到登录按钮: ${selector}`);
-                        await button.click();
-                        loginButtonFound = true;
-                        break;
-                    }
-                } catch (error) {
-                    console.log(`尝试选择器 ${selector} 失败: ${error.message}`);
-                    continue;
-                }
-            }
-            
-            // 如果没有找到登录按钮，尝试通过文本内容查找
-            if (!loginButtonFound) {
-                console.log('尝试通过文本内容查找登录按钮...');
-                const loginButtons = await page.evaluate(() => {
-                    const buttons = Array.from(document.querySelectorAll('button, a'));
-                    return buttons.filter(btn => {
-                        const text = btn.textContent.toLowerCase();
-                        return text.includes('登录') || text.includes('login');
-                    });
-                });
-                
-                if (loginButtons.length > 0) {
-                    console.log('找到登录按钮，尝试点击...');
-                    // 找到第一个登录按钮并点击
-                    const buttonElement = await page.$$('button, a');
-                    for (const btn of buttonElement) {
-                        const text = await page.evaluate(el => el.textContent.toLowerCase(), btn);
-                        if (text.includes('登录') || text.includes('login')) {
-                            await btn.click();
-                            loginButtonFound = true;
-                            break;
-                        }
-                    }
-                }
-            }
-            
-            if (loginButtonFound) {
-                console.log('已点击登录按钮，等待登录界面出现...');
-                // 等待可能出现的弹出框
-                await new Promise(resolve => setTimeout(resolve, 3000));
-            } else {
-                console.log('未找到登录按钮，请手动点击登录');
-            }
-            
-            // 显示登录提示
-            console.log('=== 请在浏览器中完成以下操作 ===');
-            console.log('1. 如有登录弹出框，点击右上角获取二维码');
-            console.log('2. 请扫描二维码登录');
-            console.log('3. 扫描成功后，程序将自动继续');
-            console.log('=== 操作完成后，程序将自动继续 ===');
-            
-            // 等待用户完成登录，改进检测逻辑
-            let loginCompleted = false;
-            const maxAttempts = 60; // 最多尝试60次，每次5秒，总共5分钟
-            let attempt = 0;
-            
-            while (!loginCompleted && attempt < maxAttempts) {
-                attempt++;
-                console.log(`登录状态检查，第 ${attempt} 次尝试...`);
-                
-                try {
-                    // 1. 检查是否存在用户信息（头像、用户名等）- 最可靠的登录标志
-                    const hasUserInfo = await page.evaluate(() => {
-                        const userSelectors = [
-                            '[class*="avatar"]',
-                            '[class*="username"]',
-                            '[class*="user-info"]',
-                            '[class*="profile"]',
-                            '[class*="account"]',
-                            '[class*="user-avatar"]',
-                            '[class*="user-profile"]'
-                        ];
-                        return userSelectors.some(selector => {
-                            const element = document.querySelector(selector);
-                            return element && window.getComputedStyle(element).display !== 'none';
-                        });
-                    });
-                    
-                    if (hasUserInfo) {
-                        console.log('检测到用户信息，登录成功！');
-                        loginCompleted = true;
-                        break;
-                    }
-                    
-                    // 2. 检查页面是否还有登录相关元素
-                    const hasLoginElements = await page.evaluate(() => {
-                        const loginKeywords = ['登录', 'Login', 'sign in', '请登录'];
-                        const pageText = document.body.textContent.toLowerCase();
-                        return loginKeywords.some(keyword => pageText.includes(keyword.toLowerCase()));
-                    });
-                    
-                    if (!hasLoginElements) {
-                        console.log('页面中没有登录相关元素，登录成功！');
-                        loginCompleted = true;
-                        break;
-                    }
-                    
-                    // 3. 检查是否有聊天历史或已加载的对话内容
-                    const hasChatHistory = await page.evaluate(() => {
-                        const chatSelectors = [
-                            '[class*="message-list"]',
-                            '[class*="chat-list"]',
-                            '[class*="conversation"]',
-                            '[class*="history"]'
-                        ];
-                        return chatSelectors.some(selector => {
-                            const element = document.querySelector(selector);
-                            return element && element.children.length > 0;
-                        });
-                    });
-                    
-                    if (hasChatHistory) {
-                        console.log('检测到聊天历史，登录成功！');
-                        loginCompleted = true;
-                        break;
-                    }
-                    
-                    // 4. 检查是否能够正常输入消息
-                    const canInputMessage = await page.$('textarea.semi-input-textarea:not([disabled])') !== null &&
-                                         await page.$('button[class*="send"]:not([disabled])') !== null;
-                    
-                    if (canInputMessage) {
-                        console.log('检测到可输入的消息框和发送按钮，登录成功！');
-                        loginCompleted = true;
-                        break;
-                    }
-                    
-                    console.log('等待用户扫码登录...');
-                    // 截取当前页面状态用于调试
-                    await page.screenshot({ path: `login_check_${attempt}.png` });
-                    // 等待5秒后重试，给用户足够时间扫码
-                    await new Promise(resolve => setTimeout(resolve, 5000));
-                    
-                } catch (error) {
-                    console.error('登录状态检查出错:', error.message);
-                    console.log('5秒后重试...');
-                    await new Promise(resolve => setTimeout(resolve, 5000));
-                }
-            }
-            
-            if (loginCompleted) {
-                console.log('用户已完成登录，继续执行...');
-                // 保存登录状态
-                this.saveLoginStatus();
-                return true;
-            } else {
-                console.error('登录超时，已尝试60次，每次5秒，总共5分钟');
-                console.error('请检查浏览器中是否已完成登录');
-                return false;
-            }
-            
+            // 跳过登录检查，直接使用
+            console.log('跳过登录检查，直接使用页面');
+            return true;
         } catch (error) {
             console.error('处理登录和验证码失败:', error.message);
             return false;
@@ -736,11 +531,11 @@ class DoubaoBrowserServer {
                 throw new Error('未找到输入框');
             }
 
-            // 输入消息
-            await inputBox.type(message, { delay: 50 });
+            // 输入消息，加快速度
+            await inputBox.type(message, { delay: 5 }); // 减少字符输入延迟
             
-            // 优化：等待输入框内容更新
-            await new Promise(resolve => setTimeout(resolve, 500));
+            // 优化：等待输入框内容更新，减少等待时间
+            await new Promise(resolve => setTimeout(resolve, 100));
             
             // 优化：尝试多种方式点击发送按钮
             let sendSuccess = false;
@@ -1304,11 +1099,11 @@ class DoubaoBrowserServer {
     }
 
     // 启动HTTP服务器
-    async startServer(port = 3000) {
+    async startServer(port = 3000, headless = true) {
         this.port = port;
         
         // 初始化浏览器
-        await this.init(false); // 默认使用有头模式，方便用户扫码登录
+        await this.init(headless); // 根据参数决定是否使用无头模式
         
         // 创建HTTP服务器
         this.server = http.createServer((req, res) => {
@@ -1377,8 +1172,15 @@ class DoubaoBrowserServer {
 
 // 启动服务
 async function main() {
+    // 解析命令行参数
+    const args = process.argv.slice(2);
+    const debug = args.includes('--debug') || args.includes('-d');
+    
+    // 默认使用无头模式，debug模式下使用有头模式
+    const headless = !debug;
+    
     const server = new DoubaoBrowserServer();
-    await server.startServer(3000);
+    await server.startServer(3000, headless);
 }
 
 main();

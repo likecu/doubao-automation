@@ -105,7 +105,28 @@
 
 - Python 3.x
 - Node.js
-- 浏览器服务器正在运行（启动命令：`node /Volumes/600g/app1/doubao获取/js/browser_server.js`）
+- 浏览器服务器正在运行
+
+## 4. 浏览器服务器启动方式
+
+**命令格式**：
+```bash
+node /Volumes/600g/app1/doubao获取/js/browser_server.js [--debug] [-d]
+```
+
+**参数说明**：
+| 参数 | 类型 | 必填 | 默认值 | 描述 |
+|------|------|------|--------|------|
+| `--debug` 或 `-d` | 布尔值 | 否 | False | 启用调试模式，使用有头模式启动浏览器，默认使用无头模式 |
+
+**示例**：
+```bash
+# 默认无头模式启动
+node /Volumes/600g/app1/doubao获取/js/browser_server.js
+
+# 调试模式启动（有头模式）
+node /Volumes/600g/app1/doubao获取/js/browser_server.js --debug
+```
 
 ## 4. 注意事项
 

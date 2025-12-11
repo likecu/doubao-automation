@@ -16,6 +16,27 @@
 
 ## 使用方法
 
+### 启动浏览器服务器
+
+在使用OCR功能前，需要先启动浏览器服务器：
+
+**命令格式**：
+```bash
+node /Volumes/600g/app1/doubao获取/js/browser_server.js [--debug] [-d]
+```
+
+**参数说明**：
+- `--debug` 或 `-d`：可选，启用调试模式，使用有头模式启动浏览器，默认使用无头模式
+
+**示例**：
+```bash
+# 默认无头模式启动
+node /Volumes/600g/app1/doubao获取/js/browser_server.js
+
+# 调试模式启动（有头模式）
+node /Volumes/600g/app1/doubao获取/js/browser_server.js --debug
+```
+
 ### 关于路径的说明
 
 文档中所有命令使用的Python解释器路径 `/Volumes/600g/app1/okx-py/bin/python3` 是一个绝对路径，脚本文件也使用绝对路径，这是为了确保命令在任何目录下都能正常执行。
