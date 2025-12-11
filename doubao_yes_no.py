@@ -51,22 +51,25 @@ class DoubaoYesNo:
         # 转换为小写进行匹配
         lower_response = response.lower()
         
-        # 肯定词列表
-        yes_words = ['是', '对', '没错', '正确', '肯定', '确定', '是的', '没错的', '对的',
+        # 否定词列表，包含更长的词优先匹配
+        no_words = ['不是', '不对', '不确定', '错误的', '不对的', '没有',
+                    '否', '不', '错误', '否定', 'neither',
+                    'no', 'nope', 'not', 'incorrect', 'wrong', 'negative']
+        
+        # 肯定词列表，包含更长的词优先匹配
+        yes_words = ['是的', '没错', '没错的', '对的', '肯定', '确定',
+                     '是', '对', '正确',
                      'yes', 'yeah', 'yep', 'correct', 'right', 'affirmative', 'sure', 'okay']
         
-        # 否定词列表
-        no_words = ['否', '不', '不对', '错误', '否定', '不确定', '不是', '不对的', '错误的',
-                    'no', 'nope', 'not', 'incorrect', 'wrong', 'negative', 'neither']
-        
-        # 检查回答是否包含肯定词或否定词
-        for word in yes_words:
-            if word in lower_response:
-                return "yes"
-        
+        # 检查回答是否包含否定词
         for word in no_words:
             if word in lower_response:
                 return "no"
+        
+        # 检查回答是否包含肯定词
+        for word in yes_words:
+            if word in lower_response:
+                return "yes"
         
         # 无法判断时返回None
         return None

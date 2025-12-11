@@ -32,7 +32,10 @@ doubao获取/
 ├── doubao_chat_bot.js     # 纯文字聊天Node.js脚本
 ├── test_upload_image.js   # 图片上传Node.js脚本
 ├── package.json           # Node.js依赖配置
-└── README.md              # 项目文档
+├── README.md              # 项目文档
+├── ARCHITECTURE.md        # 架构设计文档
+├── test_doubao_api.py     # 单元测试文件
+└── image.png              # 测试图片
 ```
 
 ## 使用方法
@@ -244,6 +247,29 @@ A: 在使用是/否判断工具时，可以添加`--debug`参数来获取详细�
 原始回答: 是的，文件中提到了地球是圆的。
 yes
 ```
+
+## 测试
+
+### 运行测试
+
+该项目包含完整的单元测试套件，用于测试各个功能模块的正确性。运行测试的方法如下：
+
+```bash
+/Volumes/600g/app1/okx-py/bin/python3 -m unittest test_doubao_api.py
+```
+
+### 测试覆盖范围
+
+测试套件覆盖了以下功能：
+
+1. **DoubaoOCR类**：初始化、无效图片处理、图片识别功能
+2. **ScreenshotOCR类**：初始化、屏幕捕获功能
+3. **DoubaoTextChat类**：初始化、发送空消息处理、消息发送功能
+4. **DoubaoYesNo类**：初始化、是/否解析、文件读取功能
+
+## 架构设计
+
+项目采用了分层设计，详细的架构设计文档请参考 `ARCHITECTURE.md` 文件。
 
 ## 许可证
 
