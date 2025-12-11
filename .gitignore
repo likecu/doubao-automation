@@ -37,3 +37,11 @@ node_modules/
 # 构建输出目录
 dist/
 build/
+
+# 调试截图
+login_check_*.png
+page_*.png
+*.png
+
+# 登录状态文件
+js/login_status.json
