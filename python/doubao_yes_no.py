@@ -12,18 +12,16 @@
 import os
 import sys
 import argparse
-from doubao_ocr import DoubaoOCR
-from doubao_text_chat import DoubaoTextChat
+from doubao_browser_client import DoubaoBrowserClient
+from doubao_common import validate_file_path
 
 class DoubaoYesNo:
-    def __init__(self, node_script_path):
+    def __init__(self, server_url="http://localhost:3000"):
         """
         初始化豆包是/否判断工具
-        :param node_script_path: Node.js脚本路径
+        :param server_url: 浏览器服务器地址，默认为 http://localhost:3000
         """
-        self.node_script_path = node_script_path
-        self.ocr = None  # 延迟初始化
-        self.text_chat = None  # 延迟初始化
+        self.client = DoubaoBrowserClient(server_url)
         
     def read_file_content(self, file_path):
         """
@@ -31,8 +29,7 @@ class DoubaoYesNo:
         :param file_path: 文件路径
         :return: 文件内容字符串
         """
-        if not os.path.exists(file_path):
-            raise FileNotFoundError(f"文件不存在: {file_path}")
+        file_path = validate_file_path(file_path)
         
         with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read()
@@ -87,19 +84,35 @@ class DoubaoYesNo:
         if debug:
             print(f"向豆包提问: {full_question}")
         
-        # 延迟初始化text_chat实例
-        if self.text_chat is None:
-            self.text_chat = DoubaoTextChat(self.node_script_path)
-        # 调用纯文字聊天获取回答，debug模式下显示浏览器界面
-        response = self.text_chat.get_response(full_question, headless=not debug)
-        
-        if not response:
+        try:
+            # 创建新页面
+            page_id = self.client.create_page()
+            if not page_id:
+                if debug:
+                    print("创建页面失败")
+                return None
+            
+            try:
+                # 执行纯文本聊天
+                result = self.client.text_chat(page_id, full_question)
+                
+                if not result or not result.get("success"):
+                    if debug:
+                        print("获取回答失败")
+                    return None
+                
+                response = result.get("response", "")
+                
+                # 解析回答为yes或no
+                return self.parse_yes_no(response, debug)
+            finally:
+                # 关闭页面
+                self.client.close_page(page_id)
+                
+        except Exception as e:
             if debug:
-                print("获取回答失败")
+                print(f"判断失败: {str(e)}")
             return None
-        
-        # 解析回答为yes或no
-        return self.parse_yes_no(response, debug)
     
     def judge_file(self, question, file_path, debug=False):
         """
@@ -121,16 +134,35 @@ class DoubaoYesNo:
         if debug:
             print(f"向豆包提问: {full_question}")
         
-        # 调用纯文字聊天获取回答，debug模式下显示浏览器界面
-        response = self.text_chat.get_response(full_question, headless=not debug)
-        
-        if not response:
+        try:
+            # 创建新页面
+            page_id = self.client.create_page()
+            if not page_id:
+                if debug:
+                    print("创建页面失败")
+                return None
+            
+            try:
+                # 执行纯文本聊天
+                result = self.client.text_chat(page_id, full_question)
+                
+                if not result or not result.get("success"):
+                    if debug:
+                        print("获取回答失败")
+                    return None
+                
+                response = result.get("response", "")
+                
+                # 解析回答为yes或no
+                return self.parse_yes_no(response, debug)
+            finally:
+                # 关闭页面
+                self.client.close_page(page_id)
+                
+        except Exception as e:
             if debug:
-                print("获取回答失败")
+                print(f"判断失败: {str(e)}")
             return None
-        
-        # 解析回答为是或否
-        return self.parse_yes_no(response, debug)
     
     def judge_image(self, question, image_path, debug=False):
         """
@@ -146,27 +178,38 @@ class DoubaoYesNo:
         if debug:
             print(f"向豆包提问: {full_question}")
         
-        # 图片识别需要使用专门的test_upload_image.js脚本
-        from doubao_common import get_default_node_script
-        from doubao_ocr import DoubaoOCR
-        
-        # 获取默认的test_upload_image.js脚本路径
-        test_upload_script = get_default_node_script("test_upload_image.js")
-        
-        # 创建专门用于图片识别的OCR实例
-        ocr = DoubaoOCR(test_upload_script)
-        # 调用OCR获取回答，debug模式下显示浏览器界面
-        result = ocr.recognize_image(image_path, full_question, headless=not debug)
-        
-        if not result or not result.get("success"):
+        try:
+            # 验证并获取绝对路径
+            image_path = validate_file_path(image_path)
+            
+            # 创建新页面
+            page_id = self.client.create_page()
+            if not page_id:
+                if debug:
+                    print("创建页面失败")
+                return None
+            
+            try:
+                # 执行OCR识别
+                result = self.client.ocr(page_id, image_path, full_question)
+                
+                if not result or not result.get("success"):
+                    if debug:
+                        print("获取回答失败")
+                    return None
+                
+                response = result.get("response", "")
+                
+                # 解析回答为yes或no
+                return self.parse_yes_no(response, debug)
+            finally:
+                # 关闭页面
+                self.client.close_page(page_id)
+                
+        except Exception as e:
             if debug:
-                print("获取回答失败")
+                print(f"判断失败: {str(e)}")
             return None
-        
-        response = result.get("response", "")
-        
-        # 解析回答为是或否
-        return self.parse_yes_no(response, debug)
     
     def judge(self, question=None, file_path=None, image_path=None, debug=False):
         """
@@ -184,6 +227,12 @@ class DoubaoYesNo:
         if file_path and image_path:
             raise ValueError("文件和图片不能同时提供")
         
+        # 检查服务器状态
+        if not self.client.is_server_running():
+            print("浏览器服务器未运行，请先启动服务器")
+            print("启动命令: node browser_server.js")
+            return None
+        
         if file_path:
             # 文件判断
             return self.judge_file(question, file_path, debug)
@@ -198,15 +247,11 @@ def main():
     """
     主函数，用于命令行调用
     """
-    from doubao_common import get_default_node_script
-    
     parser = argparse.ArgumentParser(description="豆包是/否判断工具")
     parser.add_argument("--question", required=True, help="判断的问题")
     parser.add_argument("--file", help="文件路径")
     parser.add_argument("--image", help="图片路径")
-    # 获取默认Node.js脚本路径
-    default_node_script = get_default_node_script("doubao_chat_bot.js")
-    parser.add_argument("--node_script", default=default_node_script, help="Node.js脚本路径")
+    parser.add_argument("--server", default="http://localhost:3000", help="浏览器服务器地址")
     parser.add_argument("--debug", action="store_true", help="输出调试信息")
     
     args = parser.parse_args()
@@ -218,7 +263,7 @@ def main():
     
     try:
         # 创建是/否判断实例
-        yes_no = DoubaoYesNo(args.node_script)
+        yes_no = DoubaoYesNo(args.server)
         
         # 执行判断
         result = yes_no.judge(
