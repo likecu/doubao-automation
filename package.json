@@ -1,0 +1,20 @@
+{
+  "name": "doubao-chat-bot",
+  "version": "1.0.0",
+  "description": "豆包聊天自动化爬取工具",
+  "main": "doubao_chat_bot.js",
+  "scripts": {
+    "test": "node doubao_chat_bot.js"
+  },
+  "keywords": [
+    "doubao",
+    "chat",
+    "automation",
+    "puppeteer"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "puppeteer": "^24.32.1"
+  }
+}

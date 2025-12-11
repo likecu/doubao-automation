@@ -1,0 +1,39 @@
+# 聊天历史记录文件
+chat_history*.json
+image_chat_history.json
+
+# Python缓存目录
+__pycache__/
+
+# 浏览器用户数据目录
+user_data/
+
+# 临时文件和测试文件
+simple_test.txt
+test_file.txt
+
+# 日志文件
+*.log
+
+# 环境变量文件
+.env
+.env.local
+.env.*.local
+
+# IDE配置文件
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+
+# 安装依赖目录
+node_modules/
+
+# 构建输出目录
+dist/
+build/
