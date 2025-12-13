@@ -1176,8 +1176,18 @@ async function main() {
     const args = process.argv.slice(2);
     const debug = args.includes('--debug') || args.includes('-d');
     
-    // 默认使用无头模式，debug模式下使用有头模式
-    const headless = !debug;
+    // 检查是否有明确指定无头模式
+    let headless = true; // 默认使用无头模式
+    
+    if (debug) {
+        headless = false;
+    } else if (args.includes('--no-headless') || args.includes('-nh')) {
+        headless = false;
+    } else if (args.includes('--headless') || args.includes('-h')) {
+        headless = true;
+    }
+    
+    console.log(`浏览器模式: ${headless ? '无头模式' : '有头模式'}`);
     
     const server = new DoubaoBrowserServer();
     await server.startServer(3000, headless);
