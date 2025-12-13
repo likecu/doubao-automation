@@ -51,7 +51,7 @@ node /Volumes/600g/app1/doubao获取/js/browser_server.js --debug
 
 **命令格式**：
 ```bash
-/Volumes/600g/app1/okx-py/bin/python3 /Volumes/600g/app1/doubao获取/doubao_ocr.py <图片绝对路径> [--question <提问内容>] [--node_script /Volumes/600g/app1/doubao获取/test_upload_image.js]
+/Volumes/600g/app1/okx-py/bin/python3 /Volumes/600g/app1/doubao获取/python/doubao_ocr.py <图片绝对路径> [--question <提问内容>] [--node_script /Volumes/600g/app1/doubao获取/test_upload_image.js]
 ```
 
 **参数说明**：
@@ -61,7 +61,7 @@ node /Volumes/600g/app1/doubao获取/js/browser_server.js --debug
 
 **示例**：
 ```bash
-/Volumes/600g/app1/okx-py/bin/python3 /Volumes/600g/app1/doubao获取/doubao_ocr.py /Volumes/600g/app1/doubao获取/image.png --question "图里有什么？"
+/Volumes/600g/app1/okx-py/bin/python3 /Volumes/600g/app1/doubao获取/python/doubao_ocr.py /Volumes/600g/app1/doubao获取/image.png --question "图里有什么？"
 ```
 
 #### 屏幕截图OCR
@@ -70,7 +70,7 @@ node /Volumes/600g/app1/doubao获取/js/browser_server.js --debug
 
 **命令格式**：
 ```bash
-/Volumes/600g/app1/okx-py/bin/python3 /Volumes/600g/app1/doubao获取/screenshot_ocr.py [--output <输出文件绝对路径>] [--question <提问内容>] 
+/Volumes/600g/app1/okx-py/bin/python3 /Volumes/600g/app1/doubao获取/python/screenshot_ocr.py [--output <输出文件绝对路径>] [--question <提问内容>] 
 ```
 
 **参数说明**：
@@ -79,7 +79,7 @@ node /Volumes/600g/app1/doubao获取/js/browser_server.js --debug
 
 **示例**：
 ```bash
-/Volumes/600g/app1/okx-py/bin/python3 /Volumes/600g/app1/doubao获取/screenshot_ocr.py --output /Volumes/600g/app1/doubao获取/result.txt
+/Volumes/600g/app1/okx-py/bin/python3 /Volumes/600g/app1/doubao获取/python/screenshot_ocr.py --output /Volumes/600g/app1/doubao获取/result.txt
 ```
 
 #### 是/否判断工具
@@ -88,7 +88,7 @@ node /Volumes/600g/app1/doubao获取/js/browser_server.js --debug
 
 **命令格式**：
 ```bash
-/Volumes/600g/app1/okx-py/bin/python3 /Volumes/600g/app1/doubao获取/doubao_yes_no.py --question <问题> [--file <文件路径>] [--image <图片路径>] [--node_script /Volumes/600g/app1/doubao获取/test_upload_image.js] [--debug]
+/Volumes/600g/app1/okx-py/bin/python3 /Volumes/600g/app1/doubao获取/python/doubao_yes_no.py --question <问题> [--file <文件路径>] [--image <图片路径>] [--node_script /Volumes/600g/app1/doubao获取/test_upload_image.js] [--debug]
 ```
 
 **参数说明**：
@@ -102,22 +102,22 @@ node /Volumes/600g/app1/doubao获取/js/browser_server.js --debug
 
 1. 纯文字问题判断：
 ```bash
-/Volumes/600g/app1/okx-py/bin/python3 /Volumes/600g/app1/doubao获取/doubao_yes_no.py --question "地球是圆的吗？"
+/Volumes/600g/app1/okx-py/bin/python3 /Volumes/600g/app1/doubao获取/python/doubao_yes_no.py --question "地球是圆的吗？"
 ```
 
 2. 文件内容判断：
 ```bash
-/Volumes/600g/app1/okx-py/bin/python3 /Volumes/600g/app1/doubao获取/doubao_yes_no.py --question "文件中是否包含'测试'一词？" --file /Volumes/600g/app1/doubao获取/test.txt
+/Volumes/600g/app1/okx-py/bin/python3 /Volumes/600g/app1/doubao获取/python/doubao_yes_no.py --question "文件中是否包含'测试'一词？" --file /Volumes/600g/app1/doubao获取/test.txt
 ```
 
 3. 图片内容判断：
 ```bash
-/Volumes/600g/app1/okx-py/bin/python3 /Volumes/600g/app1/doubao获取/doubao_yes_no.py --question "图片中是否有人物？" --image /Volumes/600g/app1/doubao获取/image.png
+/Volumes/600g/app1/okx-py/bin/python3 /Volumes/600g/app1/doubao获取/python/doubao_yes_no.py --question "图片中是否有人物？" --image /Volumes/600g/app1/doubao获取/image.png
 ```
 
 4. 带调试信息：
 ```bash
-/Volumes/600g/app1/okx-py/bin/python3 /Volumes/600g/app1/doubao获取/doubao_yes_no.py --question "地球是圆的吗？" 
+/Volumes/600g/app1/okx-py/bin/python3 /Volumes/600g/app1/doubao获取/python/doubao_yes_no.py --question "地球是圆的吗？" 
 ```
 
 ## 版本信息
