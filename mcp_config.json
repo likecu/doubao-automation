@@ -1,0 +1,39 @@
+{
+  "mcpServers": {
+    "doubao-ai-server": {
+      "command": "node",
+      "args": [
+        "/Volumes/600g/app1/doubao获取/js/ai_server.js"
+      ],
+      "port": 3001,
+      "description": "豆包AI标准接口服务",
+      "apis": [
+        {
+          "path": "/health",
+          "method": "GET",
+          "description": "健康检查接口"
+        },
+        {
+          "path": "/v1/chat/completions",
+          "method": "POST",
+          "description": "聊天补全接口，支持豆包聊天功能"
+        },
+        {
+          "path": "/v1/ocr/recognize",
+          "method": "POST",
+          "description": "OCR识别接口，支持图片、URL、截图识别"
+        },
+        {
+          "path": "/v1/moderations",
+          "method": "POST",
+          "description": "是/否判断接口，支持文本和图片内容审核"
+        },
+        {
+          "path": "/v1/files/upload",
+          "method": "POST",
+          "description": "文件上传接口"
+        }
+      ]
+    }
+  }
+}

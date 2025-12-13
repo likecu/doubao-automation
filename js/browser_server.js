@@ -24,7 +24,7 @@ class DoubaoBrowserServer {
     async init(headless = false) {
         console.log('正在启动浏览器...');
         
-        // 创建用户数据目录
+        // 检查并创建用户数据目录（如果不存在）
         if (!fs.existsSync(this.userDataDir)) {
             fs.mkdirSync(this.userDataDir);
             console.log('创建用户数据目录:', this.userDataDir);
@@ -32,13 +32,14 @@ class DoubaoBrowserServer {
             console.log('使用已有的用户数据目录:', this.userDataDir);
         }
         
+        // 重写浏览器启动配置，避免窗口自动置顶
         this.browser = await puppeteer.launch({
             headless: headless,
             defaultViewport: null,
             // slowMo: 100, // 加快操作速度，移除调试延迟
             devtools: false, // 关闭开发者工具，加快速度
+            // 完全自定义浏览器启动参数，避免任何可能导致窗口置顶的设置
             args: [
-                '--start-maximized',
                 '--disable-blink-features=AutomationControlled',
                 '--disable-extensions-except=',
                 '--disable-plugins-except=',
@@ -49,7 +50,25 @@ class DoubaoBrowserServer {
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
                 '--ignore-certificate-errors',
-                '--ignore-certificate-errors-spki-list'
+                '--ignore-certificate-errors-spki-list',
+                '--disable-background-timer-throttling',
+                '--disable-backgrounding-occluded-windows',
+                '--disable-renderer-backgrounding',
+                '--window-size=1024,768', // 指定窗口大小
+                '--window-position=100,100', // 明确指定窗口位置，避免自动置顶
+                '--restore-last-session=false', // 不恢复上次会话
+                '--disable-default-apps', // 禁用默认应用
+                '--disable-component-extensions-with-background-pages', // 禁用带后台页面的组件扩展
+                '--disable-hang-monitor', // 禁用挂起监控
+                '--disable-prompt-on-repost', // 禁用重发提示
+                '--disable-sync', // 禁用同步
+                '--disable-translate' // 禁用翻译
+            ],
+            // 忽略更多可能导致窗口置顶的默认参数
+            ignoreDefaultArgs: [
+                '--enable-automation',
+                '--start-maximized',
+                '--app'
             ],
             userDataDir: this.userDataDir,
             ignoreHTTPSErrors: true,
@@ -168,7 +187,9 @@ class DoubaoBrowserServer {
                 pageText.includes('登录才能') ||
                 pageText.includes('登录查看') ||
                 pageText.includes('登录使用') ||
-                pageText.includes('登录以');
+                pageText.includes('登录以') ||
+                pageText.includes('请选择所有符合上文描述的图片') ||
+                pageText.includes('拖拽到下方');
             
             // 增强的验证码检测
             // 1. 文本检测 - 只检测明确的验证码关键词
@@ -178,7 +199,9 @@ class DoubaoBrowserServer {
                 pageText.includes('安全验证') ||
                 pageText.includes('人机验证') ||
                 pageText.includes('滑块验证') ||
-                pageText.includes('图形验证');
+                pageText.includes('图形验证') ||
+                pageText.includes('请选择所有符合上文描述的图片') ||
+                pageText.includes('拖拽到下方');
             
             // 2. 元素检测 - 检查各种验证码相关元素
             const captchaElements = await page.evaluate(() => {
@@ -202,7 +225,18 @@ class DoubaoBrowserServer {
                     '[class*="security-verify"]',
                     '[class*="human-verify"]',
                     '[id*="security-verify"]',
-                    '[id*="human-verify"]'
+                    '[id*="human-verify"]',
+                    // 图片选择验证相关元素
+                    '[class*="image-verify"]',
+                    '[class*="img-verify"]',
+                    '[id*="image-verify"]',
+                    '[id*="img-verify"]',
+                    '[class*="select-image"]',
+                    '[id*="select-image"]',
+                    '[class*="drag-to-select"]',
+                    '[id*="drag-to-select"]',
+                    '[class*="drag-to-bottom"]',
+                    '[id*="drag-to-bottom"]'
                 ];
                 
                 // 检查是否有任何验证码元素存在
@@ -391,19 +425,19 @@ class DoubaoBrowserServer {
                 currentUrl.includes('signin') ||
                 currentUrl.includes('SignIn');
             
-            // 检查是否有用户信息元素（已登录的特征）
+            // 检查是否有用户信息元素（已登录的特征）- 更严格的检测
             const hasUserInfo = await page.evaluate(() => {
                 const userInfoSelectors = [
-                    '[class*="avatar"]',
-                    '[class*="username"]',
-                    '[id*="user"]',
-                    '[aria-label*="user"]',
-                    '[class*="profile"]',
-                    '[id*="profile"]',
-                    '[href*="profile"]',
-                    '[class*="account"]',
-                    '[id*="account"]',
-                    '[href*="account"]'
+                    '[class*="avatar"][class*="user"]',
+                    '[class*="username"]:not([class*="login"])',
+                    '[id*="user"][id*="avatar"]',
+                    '[aria-label*="user"][aria-label*="avatar"]',
+                    '[class*="profile"][class*="user"]',
+                    '[id*="profile"][id*="user"]',
+                    '[href*="profile"][href*="user"]',
+                    '[class*="account"][class*="user"]',
+                    '[id*="account"][id*="user"]',
+                    '[href*="account"][href*="user"]'
                 ];
                 
                 for (const selector of userInfoSelectors) {
@@ -411,10 +445,20 @@ class DoubaoBrowserServer {
                         const elements = document.querySelectorAll(selector);
                         const visibleElements = Array.from(elements).filter(el => {
                             const style = window.getComputedStyle(el);
-                            return style.display !== 'none' && style.visibility !== 'hidden';
+                            return style.display !== 'none' && 
+                                   style.visibility !== 'hidden' &&
+                                   el.offsetWidth > 0 &&
+                                   el.offsetHeight > 0;
                         });
                         if (visibleElements.length > 0) {
-                            return true;
+                            // 进一步检查元素是否真正包含用户信息
+                            const hasRealUserInfo = visibleElements.some(el => {
+                                const text = el.textContent || '';
+                                return text.length > 0 && !text.includes('登录') && !text.includes('Login');
+                            });
+                            if (hasRealUserInfo) {
+                                return true;
+                            }
                         }
                     } catch (error) {
                         continue;
@@ -426,29 +470,22 @@ class DoubaoBrowserServer {
             // 综合判断：需要满足多个条件才能确定登录状态
             let finalNeedLogin = false;
             
-            // 如果是登录URL，肯定需要登录
-            if (isLoginUrl) {
-                finalNeedLogin = true;
-            } 
-            // 如果有登录按钮且没有用户信息，需要登录
-            else if (loginButtonExists && !hasUserInfo) {
-                finalNeedLogin = true;
-            }
-            // 如果页面包含登录相关文本且没有用户信息，需要登录
-            else if (needLogin && !hasUserInfo) {
-                finalNeedLogin = true;
-            }
-            // 如果有登录表单元素，需要登录
-            else if (hasLoginElements && !hasUserInfo) {
-                finalNeedLogin = true;
-            }
-            // 如果没有用户信息，且页面文本包含登录相关内容，需要登录
-            else if (!hasUserInfo && (needLogin || loginButtonExists || hasLoginElements)) {
-                finalNeedLogin = true;
-            }
-            // 其他情况，不需要登录
-            else {
-                finalNeedLogin = false;
+            // 核心逻辑：如果没有用户信息，默认需要登录
+            if (!hasUserInfo) {
+                // 检查是否有明确的登录标识
+                if (isLoginUrl || loginButtonExists || needLogin || hasLoginElements) {
+                    finalNeedLogin = true;
+                } else {
+                    // 即使没有明确的登录标识，如果没有用户信息，也认为需要登录
+                    finalNeedLogin = true;
+                }
+            } else {
+                // 如果有用户信息，检查是否有明确的需要登录的标识
+                if (isLoginUrl || loginButtonExists || needLogin || hasLoginElements) {
+                    finalNeedLogin = true;
+                } else {
+                    finalNeedLogin = false;
+                }
             }
             
             // 更新登录状态：如果不需要登录且有用户信息，说明登录状态有效
@@ -489,9 +526,19 @@ class DoubaoBrowserServer {
     // 处理登录和验证码
     async handleLoginAndCaptcha(page) {
         try {
-            // 跳过登录检查，直接使用
-            console.log('跳过登录检查，直接使用页面');
-            return true;
+            // 调用登录和验证码检查
+            const result = await this.checkLoginOrCaptcha(page);
+            
+            if (result.needLogin) {
+                console.log('检测到需要登录');
+                return false;
+            } else if (result.hasCaptcha) {
+                console.log('检测到验证码');
+                return false;
+            } else {
+                console.log('登录状态有效，无验证码');
+                return true;
+            }
         } catch (error) {
             console.error('处理登录和验证码失败:', error.message);
             return false;
@@ -513,6 +560,22 @@ class DoubaoBrowserServer {
         // 设置真实的用户代理
         await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
         
+        // 尝试获取浏览器窗口并调整其行为，避免自动置顶
+        if (!this.headless) {
+            try {
+                // 获取当前页面的浏览器窗口
+                const browserContext = page.browserContext();
+                const pages = await browserContext.pages();
+                if (pages.length > 0) {
+                    // 尝试通过浏览器上下文来控制窗口行为
+                    // 这里我们不使用任何可能导致窗口置顶的操作
+                    console.log(`页面 ${pageId} 创建，已配置窗口行为`);
+                }
+            } catch (error) {
+                console.log(`页面 ${pageId} 窗口行为配置失败:`, error.message);
+            }
+        }
+        
         // 导航到豆包聊天页面
         console.log(`页面 ${pageId} 导航到豆包聊天页面...`);
         await page.goto(this.baseUrl, {
@@ -530,10 +593,9 @@ class DoubaoBrowserServer {
             // 使用新页面
             page = result;
         } else if (result === false) {
-            // 处理失败，关闭页面
-            await page.close();
-            console.error(`页面 ${pageId} 创建失败，处理登录和验证码失败`);
-            return null;
+            // 登录或验证码检测失败，但仍继续创建页面
+            // 这样用户可以手动处理登录或验证码
+            console.warn(`页面 ${pageId} 检测到需要登录或验证码，但仍继续创建页面`);
         }
 
         try {
@@ -856,51 +918,75 @@ class DoubaoBrowserServer {
             
             // 从聊天记录中查找最新的AI回复
             if (chatHistory && chatHistory.length > 0) {
-                // 1. 寻找包含编辑分享的完整回复（适用于图片OCR和复杂问题）
-                for (let i = chatHistory.length - 1; i >= 0; i--) {
-                    const msg = chatHistory[i];
-                    if (msg.content && msg.content.includes('编辑分享')) {
-                        const cleanResponse = msg.content.split('编辑分享')[0].trim();
-                        if (cleanResponse.length > 20) {
-                            console.log(`页面 ${pageId} 从聊天记录中成功获取AI回复`);
-                            console.log(`页面 ${pageId} AI回复: ${cleanResponse}`);
-                            return cleanResponse;
-                        }
+                console.log(`页面 ${pageId} 提取到 ${chatHistory.length} 条消息`);
+                
+                // 1. 先过滤掉明显无效的消息
+                const validMessages = chatHistory.filter(msg => {
+                    return msg.content && 
+                           msg.content.length > 15 && // 跳过非常短的消息
+                           !msg.content.includes('Please answer') && // 跳过英文指令
+                           !msg.content.includes('请回答'); // 跳过中文指令
+                    // 注意：不再过滤包含"编辑分享"的消息，因为这些通常是完整的AI回复，只是末尾包含了编辑选项
+                });
+                
+                console.log(`页面 ${pageId} 过滤后剩余 ${validMessages.length} 条有效消息`);
+                
+                // 2. 找到包含实际回答的消息
+                // 寻找包含有意义回答的消息，通常是最长的那条
+                let bestResponse = null;
+                let maxLength = 0;
+                
+                for (const msg of validMessages) {
+                    console.log(`检查消息: ${msg.content.substring(0, 60)}... (长度: ${msg.content.length})`);
+                    
+                    // 改进的问题列表过滤：只跳过以问题列表开头或主要内容是问题列表的消息
+                    // 真正的AI回复通常先回答问题，然后才会列出相关问题
+                    const chineseQuestionCount = msg.content.split('？').length - 1;
+                    const englishQuestionCount = msg.content.split('?').length - 1;
+                    const totalQuestionCount = chineseQuestionCount + englishQuestionCount;
+                    
+                    // 检查消息是否主要由问题组成
+                    // 1. 如果问题数量超过3个，但消息长度很长，可能是包含相关问题的正常回复
+                    // 2. 如果消息开头就是问题列表，跳过
+                    // 3. 否则，保留消息
+                    const isMainlyQuestions = 
+                        (totalQuestionCount > 3 && msg.content.length < 200) || 
+                        (msg.content.startsWith('如何') && totalQuestionCount > 2) ||
+                        (msg.content.startsWith('什么') && totalQuestionCount > 2) ||
+                        (msg.content.startsWith('为什么') && totalQuestionCount > 2) ||
+                        (msg.content.startsWith('怎么') && totalQuestionCount > 2);
+                    
+                    if (isMainlyQuestions) {
+                        console.log('跳过主要由问题组成的消息');
+                        continue;
+                    }
+                    
+                    // 寻找最长的消息，因为AI的实际回答通常是最长的
+                    if (msg.content.length > maxLength) {
+                        maxLength = msg.content.length;
+                        bestResponse = msg;
+                        console.log('找到更长的消息，更新最佳回复');
                     }
                 }
                 
-                // 2. 寻找最长的回复内容（适用于纯文本聊天）
-                let longestResponse = '';
-                for (const msg of chatHistory) {
-                    if (msg.content && msg.content.length > longestResponse.length) {
-                        // 跳过建议问题和短回复
-                        if (!msg.content.includes('你可以回答') &&
-                            !msg.content.includes('你是如何') &&
-                            !msg.content.includes('你能和我') &&
-                            !msg.content.includes('是什么意思') &&
-                            !msg.content.includes('如何退出')) {
-                            longestResponse = msg.content;
-                        }
+                // 3. 如果找到了最佳回复，返回它
+                if (bestResponse) {
+                    // 清理AI回复，移除可能的干扰内容
+                    let cleanResponse = bestResponse.content;
+                    
+                    // 移除"编辑"相关内容
+                    if (cleanResponse.includes('编辑')) {
+                        cleanResponse = cleanResponse.split('编辑')[0].trim();
                     }
-                }
-                
-                if (longestResponse.length > 20) {
-                    console.log(`页面 ${pageId} 从聊天记录中获取到AI回复`);
-                    console.log(`页面 ${pageId} AI回复: ${longestResponse}`);
-                    return longestResponse;
-                }
-                
-                // 3. 寻找包含问候语的回复（适用于纯文本聊天）
-                for (const msg of chatHistory) {
-                    if (msg.content && (msg.content.includes('你好') || 
-                                        msg.content.includes('您好') ||
-                                        msg.content.includes('有什么可以帮到你') ||
-                                        msg.content.includes('可以随时找我'))) {
-                        const cleanResponse = msg.content.split('编辑分享')[0].trim();
-                        console.log(`页面 ${pageId} 从聊天记录中获取到AI回复`);
-                        console.log(`页面 ${pageId} AI回复: ${cleanResponse}`);
-                        return cleanResponse;
+                    
+                    // 移除末尾的问题列表
+                    if (cleanResponse.includes('～')) {
+                        cleanResponse = cleanResponse.split('～')[0] + '～';
                     }
+                    
+                    console.log(`页面 ${pageId} 从聊天记录中成功获取AI回复`);
+                    console.log(`页面 ${pageId} AI回复: ${cleanResponse}`);
+                    return cleanResponse;
                 }
             }
 
@@ -992,20 +1078,36 @@ class DoubaoBrowserServer {
                         continue;
                     }
 
-                    // 简单判断消息类型（用户/AI）
+                    // 改进消息类型识别（用户/AI）
                     const className = await message.evaluate(el => el.className);
                     const roleAttr = await message.evaluate(el => el.getAttribute('role') || '');
                     const ariaLabel = await message.evaluate(el => el.getAttribute('aria-label') || '');
+                    const innerHTML = await message.evaluate(el => el.innerHTML);
                     
+                    // 更准确的类型判断：先检查是否包含编辑分享，这通常是AI回复的特征
+                    // 然后根据消息内容和位置判断类型
                     let type = 'ai'; // 默认AI消息
-                    if (className.includes('user') || 
+                    
+                    // 用户消息特征：包含user/human/sender/self等关键词，或包含输入相关的类
+                    if (
+                        className.includes('user') || 
                         className.includes('human') ||
                         className.includes('sender') ||
                         className.includes('self') ||
+                        className.includes('input') ||
+                        className.includes('textarea') ||
+                        className.includes('message-sender') ||
+                        className.includes('self-message') ||
                         roleAttr.includes('user') ||
                         ariaLabel.includes('user') ||
-                        ariaLabel.includes('human')) {
+                        ariaLabel.includes('human')
+                    ) {
                         type = 'user';
+                    }
+                    
+                    // 特别处理：如果消息包含"编辑分享"，则更可能是AI回复
+                    if (content.includes('编辑分享') || content.includes('编辑')) {
+                        type = 'ai';
                     }
 
                     history.push({
@@ -1164,11 +1266,16 @@ class DoubaoBrowserServer {
                     // 获取AI回复
                     const { pageId: responsePageId } = postData;
                     const response = await this.getAIResponse(responsePageId);
-                    res.writeHead(200, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({
+                    const aiResponseData = {
                         success: true,
                         response: response
-                    }));
+                    };
+                    // 记录完整API响应日志
+                    console.log('=== API响应日志 - /getAIResponse ===');
+                    console.log('请求数据:', postData);
+                    console.log('响应数据:', JSON.stringify(aiResponseData, null, 2));
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify(aiResponseData));
                     break;
 
                 case '/extractChatHistory':
@@ -1199,14 +1306,21 @@ class DoubaoBrowserServer {
                         chatHistory = await this.extractChatHistory(ocrPageId);
                     }
                     
-                    res.writeHead(200, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({
+                    const ocrResponseData = {
                         success: ocrSendSuccess,
                         message: question,
                         response: ocrResponse,
                         chatHistory: chatHistory,
                         timestamp: new Date().toISOString()
-                    }));
+                    };
+                    
+                    // 记录完整API响应日志
+                    console.log('=== API响应日志 - /ocr ===');
+                    console.log('请求数据:', JSON.stringify(postData, null, 2));
+                    console.log('响应数据:', JSON.stringify(ocrResponseData, null, 2));
+                    
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify(ocrResponseData));
                     break;
 
                 case '/textChat':
@@ -1226,14 +1340,21 @@ class DoubaoBrowserServer {
                         textChatHistory = await this.extractChatHistory(textChatPageId);
                     }
                     
-                    res.writeHead(200, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({
+                    const textChatResponseData = {
                         success: textSendSuccess,
                         message: textMsg,
                         response: textResponse,
                         chatHistory: textChatHistory,
                         timestamp: new Date().toISOString()
-                    }));
+                    };
+                    
+                    // 记录完整API响应日志
+                    console.log('=== API响应日志 - /textChat ===');
+                    console.log('请求数据:', JSON.stringify(postData, null, 2));
+                    console.log('响应数据:', JSON.stringify(textChatResponseData, null, 2));
+                    
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify(textChatResponseData));
                     break;
 
                 default:

@@ -356,6 +356,10 @@ class DoubaoYesNo:
         if debug:
             print(f"原始回答: {response}")
         
+        # 处理response为None的情况
+        if response is None:
+            return None
+        
         # 转换为小写进行匹配
         lower_response = response.lower()
         
@@ -504,12 +508,63 @@ class DoubaoYesNo:
                 # 执行OCR识别
                 result = self.client.ocr(page_id, image_path, full_question)
                 
+                # 输出完整的API响应日志
+                if debug:
+                    print("\n=== 完整API响应 ===")
+                    print(json.dumps(result, indent=2, ensure_ascii=False))
+                
                 if not result or not result.get("success"):
                     if debug:
                         print("获取回答失败")
                     return None
                 
+                # 获取原始响应
                 response = result.get("response", "")
+                
+                # 处理response为null的情况，从chatHistory中提取回答
+                chat_history = result.get("chatHistory", [])
+                if response is None or response == "":
+                    # 遍历chatHistory，找到包含实际回答的AI消息
+                    actual_response = ""
+                    for message in chat_history:
+                        if message.get("type") == "ai" and message.get("content"):
+                            content = message.get("content")
+                            # 跳过无意义内容
+                            if content in ["分享", "编辑分享"]:
+                                continue
+                            
+                            # 检查是否是重复的问题
+                            lower_content = content.lower()
+                            lower_question = full_question.lower()
+                            if lower_content.startswith(lower_question):
+                                continue
+                            
+                            # 检查是否包含实际回答（yes/no）
+                            if 'yes' in lower_content or 'no' in lower_content:
+                                actual_response = content
+                                break
+                    
+                    # 如果没有找到包含yes/no的消息，使用最长的AI回答
+                    if not actual_response:
+                        longest_ai_response = ""
+                        for message in chat_history:
+                            if message.get("type") == "ai" and message.get("content"):
+                                content = message.get("content")
+                                # 跳过无意义内容
+                                if content in ["分享", "编辑分享"]:
+                                    continue
+                                
+                                # 找到最长的AI回答
+                                if len(content) > len(longest_ai_response):
+                                    longest_ai_response = content
+                        actual_response = longest_ai_response
+                    
+                    # 提取"编辑分享"之前的内容作为原始回答
+                    if actual_response:
+                        if "编辑分享" in actual_response:
+                            response = actual_response.split("编辑分享")[0].strip()
+                        else:
+                            response = actual_response
                 
                 # 解析回答为yes或no
                 return self.parse_yes_no(response, debug)

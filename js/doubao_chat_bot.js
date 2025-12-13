@@ -182,8 +182,8 @@ class DoubaoChatBot {
                 // 1. 寻找包含编辑分享的完整回复（适用于图片OCR和复杂问题）
                 for (let i = chatHistory.length - 1; i >= 0; i--) {
                     const msg = chatHistory[i];
-                    if (msg.content && msg.content.includes('编辑分享')) {
-                        const cleanResponse = msg.content.split('编辑分享')[0].trim();
+                    if (msg.content && msg.content.includes('编辑')) {
+                        const cleanResponse = msg.content.split('编辑')[0].trim();
                         if (cleanResponse.length > 20) {
                             console.log('从聊天记录中成功获取AI回复');
                             console.log(`AI回复: ${cleanResponse}`);
@@ -233,7 +233,7 @@ class DoubaoChatBot {
                                         msg.content.includes('您好') ||
                                         msg.content.includes('有什么可以帮到你') ||
                                         msg.content.includes('可以随时找我'))) {
-                        const cleanResponse = msg.content.split('编辑分享')[0].trim();
+                        const cleanResponse = msg.content.split('编辑')[0].trim();
                         console.log('从聊天记录中获取到AI回复');
                         console.log(`AI回复: ${cleanResponse}`);
                         return cleanResponse;

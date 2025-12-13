@@ -8,24 +8,6 @@
 2. **屏幕截图OCR识别** - 截取当前屏幕并识别内容
 3. **是/否判断** - 支持纯文本、文件、图片内容的是/否判断
 
-## 前提条件
-
-1. 已安装 Node.js 环境
-2. 已安装 Python 3.8+ 环境
-3. 已启动浏览器服务器：
-   ```bash
-   node browser_server.js
-   ```
-
-## 安装依赖
-
-```bash
-# 安装 Python 依赖
-/Volumes/600g/app1/okx-py/bin/python3 -m pip install -r requirements.txt
-
-# 安装 Node.js 依赖
-npm install
-```
 
 ## 基本使用方法
 
@@ -208,15 +190,3 @@ screenshot_ocr.recognize_screen(output_file="/path/to/result.txt")
 yes_no = DoubaoYesNo()
 result = yes_no.judge(question="地球是圆的吗？")
 ```
-
-## 更新日志
-
-### v1.0.0
-- 整合了图片OCR、屏幕截图OCR、是/否判断功能
-- 统一了命令行接口
-- 支持自定义服务器地址
-- 优化了错误处理机制
-
-## 联系方式
-
-如有问题或建议，请联系开发团队。

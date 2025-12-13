@@ -56,17 +56,43 @@ class DoubaoOCR:
             print(f"调用服务器时发生错误: {e}")
             return None
     
-    def get_ocr_result(self, image_path, question="图里有什么内容？", headless=True):
+    def get_ocr_result(self, result, question="图里有什么内容？"):
         """
-        获取OCR识别结果
-        :param image_path: 图片路径
+        从识别结果中提取OCR识别文本
+        :param result: 识别结果对象
         :param question: 向豆包提问的问题
-        :param headless: 是否使用无头模式（已废弃，由服务器端控制）
         :return: 识别结果字符串
         """
-        result = self.recognize_image(image_path, question, headless=headless)
         if result and result.get("success"):
-            return result.get("response", "")
+            # 直接从chatHistory中提取实际回答，不依赖response字段
+            chat_history = result.get("chatHistory", [])
+            actual_response = ""
+            
+            for message in chat_history:
+                if message.get("type") == "ai" and message.get("content"):
+                    content = message.get("content")
+                    # 跳过无意义内容
+                    if content in ["分享", "编辑分享"]:
+                        continue
+                    
+                    # 跳过只有问题的消息
+                    if content.strip() == question:
+                        continue
+                    
+                    # 检查是否包含实际图片描述
+                    if any(keyword in content for keyword in ["国王塔", "宝箱", "金币", "圣水", "宝石", "对战按钮"]):
+                        # 提取"编辑分享"之前的内容
+                        if "编辑分享" in content:
+                            actual_response = content.split("编辑分享")[0].strip()
+                        else:
+                            actual_response = content
+                        break
+            
+            # 如果没有找到合适的描述，使用response字段
+            if not actual_response:
+                actual_response = result.get("response", "识别失败")
+            
+            return actual_response
         return "识别失败"
 
 
@@ -83,6 +109,7 @@ def main():
     parser.add_argument("--server", default="http://localhost:3000", help="浏览器服务器地址")
     # 保留headless参数以保持兼容性，但实际上由服务器端控制
     parser.add_argument("--headless", type=lambda x: x.lower() in ['true', 'yes', '1'], default=True, help="是否使用无头模式（不显示浏览器界面），可选值：true/false/yes/no/1/0")
+    parser.add_argument("--verbose", action="store_true", help="显示详细日志")
     
     args = parser.parse_args()
     
@@ -93,25 +120,30 @@ def main():
     result = ocr.recognize_image(args.image_path, args.question, headless=args.headless)
     
     if result:
-        print("\n=== 识别结果 ===")
-        print(json.dumps(result, indent=2, ensure_ascii=False))
+        if args.verbose:
+            # 详细模式：显示完整API响应和聊天记录
+            print("\n=== 完整API响应 ===")
+            print(json.dumps(result, indent=2, ensure_ascii=False))
         
         # 提取关键信息
         if result.get("success"):
-            print("\n=== 关键信息 ===")
-            print(f"提问: {result.get('message', '')}")
-            print(f"回复: {result.get('response', '')}")
+            # 使用get_ocr_result从result中提取更准确的回答
+            actual_response = ocr.get_ocr_result(result, args.question)
+            print("\n=== 识别结果 ===")
+            print(f"提问: {args.question}")
+            print(f"回答: {actual_response}")
             
-            # 提取聊天历史
-            chat_history = result.get('chatHistory', [])
-            print(f"\n聊天记录数量: {len(chat_history)}")
-            
-            # 打印每条聊天记录
-            for i, msg in enumerate(chat_history):
-                print(f"\n消息 {i+1}:")
-                print(f"  类型: {msg.get('type', '')}")
-                print(f"  内容: {msg.get('content', '')}")
-                print(f"  时间: {msg.get('timestamp', '')}")
+            if args.verbose:
+                # 详细模式：显示聊天记录
+                chat_history = result.get('chatHistory', [])
+                print(f"\n聊天记录数量: {len(chat_history)}")
+                
+                # 打印每条聊天记录
+                for i, msg in enumerate(chat_history):
+                    print(f"\n消息 {i+1}:")
+                    print(f"  类型: {msg.get('type', '')}")
+                    print(f"  内容: {msg.get('content', '')}")
+                    print(f"  时间: {msg.get('timestamp', '')}")
     else:
         print("识别失败")
 
