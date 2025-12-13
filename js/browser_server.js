@@ -170,21 +170,126 @@ class DoubaoBrowserServer {
                 pageText.includes('登录使用') ||
                 pageText.includes('登录以');
             
-            // 检查是否有验证码
-            const hasCaptcha = 
+            // 增强的验证码检测
+            // 1. 文本检测 - 只检测明确的验证码关键词
+            const hasCaptchaText = 
                 pageText.includes('验证码') || 
                 pageText.includes('captcha') || 
-                pageText.includes('verification') ||
-                pageText.includes('验证') ||
-                pageText.includes('verify');
+                pageText.includes('安全验证') ||
+                pageText.includes('人机验证') ||
+                pageText.includes('滑块验证') ||
+                pageText.includes('图形验证');
             
-            // 检查是否有滑块验证
+            // 2. 元素检测 - 检查各种验证码相关元素
+            const captchaElements = await page.evaluate(() => {
+                // 检测多种可能的验证码元素，但更严格
+                const captchaSelectors = [
+                    '[class*="captcha"]',
+                    '[id*="captcha"]',
+                    'img[src*="captcha"]',
+                    'canvas[id*="captcha"]',
+                    'canvas[class*="captcha"]',
+                    '[aria-label*="captcha"]',
+                    '[role*="captcha"]',
+                    // 滑块验证码相关元素
+                    '[class*="slider-captcha"]',
+                    '[class*="verify-slider"]',
+                    '[class*="captcha-slider"]',
+                    '[id*="slider-captcha"]',
+                    '[id*="verify-slider"]',
+                    '[id*="captcha-slider"]',
+                    // 明确的验证码验证元素
+                    '[class*="security-verify"]',
+                    '[class*="human-verify"]',
+                    '[id*="security-verify"]',
+                    '[id*="human-verify"]'
+                ];
+                
+                // 检查是否有任何验证码元素存在
+                for (const selector of captchaSelectors) {
+                    try {
+                        const elements = document.querySelectorAll(selector);
+                        
+                        // 过滤掉不可见的元素
+                        const visibleElements = Array.from(elements).filter(el => {
+                            const style = window.getComputedStyle(el);
+                            // 检查元素是否可见
+                            const isVisible = style.display !== 'none' && 
+                                           style.visibility !== 'hidden' &&
+                                           style.opacity !== '0' &&
+                                           el.offsetWidth > 0 &&
+                                           el.offsetHeight > 0;
+                            
+                            // 检查元素是否在视口内
+                            const rect = el.getBoundingClientRect();
+                            const isInViewport = rect.top < window.innerHeight && 
+                                             rect.bottom > 0 &&
+                                             rect.left < window.innerWidth &&
+                                             rect.right > 0;
+                            
+                            return isVisible && isInViewport;
+                        });
+                        
+                        if (visibleElements.length > 0) {
+                            console.log('找到验证码元素:', selector, '数量:', visibleElements.length);
+                            return true;
+                        }
+                    } catch (error) {
+                        // 忽略无效的选择器
+                        continue;
+                    }
+                }
+                
+                // 检查是否有包含明确验证码文本的元素
+                const allElements = Array.from(document.querySelectorAll('*'));
+                const hasCaptchaContent = allElements.some(el => {
+                    try {
+                        const text = el.textContent.toLowerCase();
+                        return text.includes('验证码') || 
+                               text.includes('captcha') || 
+                               text.includes('安全验证') ||
+                               text.includes('人机验证') ||
+                               text.includes('滑块验证');
+                    } catch (error) {
+                        return false;
+                    }
+                });
+                
+                return hasCaptchaContent;
+            });
+            
+            // 3. 检查是否有明确的滑块验证
             const hasSlider = 
-                await page.$('[class*="slider"]') !== null || 
-                await page.$('[class*="captcha"]') !== null ||
-                await page.$('[class*="verify"]') !== null ||
-                await page.$('[class*="slide"]') !== null ||
-                await page.$('[class*="validate"]') !== null;
+                await page.$('[class*="slider-captcha"]') !== null || 
+                await page.$('[class*="verify-slider"]') !== null ||
+                await page.$('[class*="captcha-slider"]') !== null ||
+                await page.$('[id*="slider-captcha"]') !== null ||
+                await page.$('[id*="verify-slider"]') !== null ||
+                await page.$('[id*="captcha-slider"]') !== null ||
+                await page.$('[class*="slider-verify"]') !== null;
+            
+            // 4. 检查是否有iframe可能包含验证码（但不单独作为验证码判断依据）
+            const hasIframe = await page.$('iframe') !== null;
+            
+            // 5. 检查页面中是否有输入验证码的输入框
+            const hasCaptchaInput = await page.$('input[type="text"][name*="captcha"], input[type="text"][id*="captcha"], input[type="text"][class*="captcha"]') !== null;
+            
+            // 综合判断是否有验证码 - 更严格的逻辑，需要多个条件同时满足
+            // 只有当文本包含明确的验证码关键词，或者同时满足多个验证码相关条件时，才判断为有验证码
+            let hasCaptcha = false;
+            if (hasCaptchaText) {
+                // 如果文本中明确提到验证码，直接判断为有验证码
+                hasCaptcha = true;
+            } else if (captchaElements && (hasSlider || hasCaptchaInput)) {
+                // 如果有验证码元素，并且同时有滑块或验证码输入框，判断为有验证码
+                hasCaptcha = true;
+            } else if (hasSlider && hasCaptchaInput) {
+                // 如果同时有滑块和验证码输入框，判断为有验证码
+                hasCaptcha = true;
+            } else {
+                // 其他情况，判断为没有验证码
+                hasCaptcha = false;
+            }
             
             // 检查登录按钮是否存在（更全面的检测，包括右上角登录按钮）
             const loginButtonExists = await page.evaluate(() => {
@@ -362,6 +467,8 @@ class DoubaoBrowserServer {
                 needLogin: finalNeedLogin, 
                 hasCaptcha, 
                 hasSlider, 
+                hasIframe, 
+                hasCaptchaInput,
                 loginButtonExists, 
                 hasLoginElements,
                 isLoginUrl,
@@ -512,6 +619,13 @@ class DoubaoBrowserServer {
         }
 
         try {
+            // 在发送消息前检查验证码
+            const captchaResult = await this.checkLoginOrCaptcha(page);
+            if (captchaResult.hasCaptcha) {
+                console.log(`页面 ${pageId} 检测到验证码，消息发送失败`);
+                return false;
+            }
+            
             // 读取question_addon.md文件内容
             let addonContent = '';
             try {
@@ -605,6 +719,12 @@ class DoubaoBrowserServer {
         }
 
         try {
+            // 在上传文件前检查验证码
+            const captchaResult = await this.checkLoginOrCaptcha(page);
+            if (captchaResult.hasCaptcha) {
+                throw new Error('检测到验证码，请手动处理后重试');
+            }
+            
             console.log(`页面 ${pageId} 上传文件: ${filePath}`);
             
             // 检查文件是否存在
@@ -673,6 +793,12 @@ class DoubaoBrowserServer {
         }
 
         try {
+            // 在发送带文件的消息前检查验证码
+            const captchaResult = await this.checkLoginOrCaptcha(page);
+            if (captchaResult.hasCaptcha) {
+                throw new Error('检测到验证码，请手动处理后重试');
+            }
+            
             // 先上传文件
             const uploadSuccess = await this.uploadFile(pageId, filePath);
             if (!uploadSuccess) {
@@ -704,6 +830,17 @@ class DoubaoBrowserServer {
         }
 
         try {
+            // 在获取AI回复前检查验证码
+            const captchaResult = await this.checkLoginOrCaptcha(page);
+            if (captchaResult.hasCaptcha) {
+                console.log(`页面 ${pageId} 检测到验证码，返回验证码信息`);
+                // 截取当前页面状态，用于调试
+                await page.screenshot({ path: `page_${pageId}_captcha.png` });
+                console.log(`页面 ${pageId} 已截图，保存为 page_${pageId}_captcha.png`);
+                // 返回特殊标记，表示检测到验证码
+                return '[CAPTCHA_DETECTED]';
+            }
+            
             console.log(`页面 ${pageId} 等待AI回复...`);
             
             // 等待回复完成，最多等待60秒
@@ -783,6 +920,17 @@ class DoubaoBrowserServer {
         }
 
         try {
+            // 在提取聊天记录前检查验证码
+            const captchaResult = await this.checkLoginOrCaptcha(page);
+            if (captchaResult.hasCaptcha) {
+                console.log(`页面 ${pageId} 检测到验证码`);
+                return [{ 
+                    type: 'error', 
+                    content: '检测到验证码，请手动处理后重试', 
+                    timestamp: new Date().toISOString() 
+                }];
+            }
+            
             console.log(`页面 ${pageId} 提取聊天记录...`);
             
             // 获取聊天记录容器，增加更多选择器
