@@ -227,6 +227,37 @@ class DoubaoOCR:
             try:
                 # 执行OCR识别
                 result = self.client.ocr(page_id, image_path, question)
+                
+                # 改进结果提取逻辑：从chatHistory中提取实际回答
+                if result and result.get("success"):
+                    chat_history = result.get("chatHistory", [])
+                    actual_response = ""
+                    
+                    # 遍历chatHistory，找到包含实际回答的AI消息
+                    for message in chat_history:
+                        if message.get("type") == "ai" and message.get("content"):
+                            content = message.get("content")
+                            # 跳过无意义内容
+                            if content in ["分享", "编辑分享"]:
+                                continue
+                            
+                            # 检查是否是重复的问题
+                            lower_content = content.lower()
+                            lower_question = question.lower()
+                            if lower_content.startswith(lower_question):
+                                continue
+                            
+                            # 提取"编辑分享"之前的内容作为实际回答
+                            if "编辑分享" in content:
+                                actual_response = content.split("编辑分享")[0].strip()
+                            else:
+                                actual_response = content
+                            break
+                    
+                    # 如果找到了实际回答，更新result的response字段
+                    if actual_response:
+                        result["response"] = actual_response
+                
                 return result
             finally:
                 # 关闭页面

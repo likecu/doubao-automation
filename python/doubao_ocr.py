@@ -79,14 +79,13 @@ class DoubaoOCR:
                     if content.strip() == question:
                         continue
                     
-                    # 检查是否包含实际图片描述
-                    if any(keyword in content for keyword in ["国王塔", "宝箱", "金币", "圣水", "宝石", "对战按钮"]):
-                        # 提取"编辑分享"之前的内容
-                        if "编辑分享" in content:
-                            actual_response = content.split("编辑分享")[0].strip()
-                        else:
-                            actual_response = content
-                        break
+
+
+                    if "编辑分享" in content:
+                        actual_response = content.split("编辑分享")[0].strip()
+                    else:
+                        actual_response = content
+                    break
             
             # 如果没有找到合适的描述，使用response字段
             if not actual_response:

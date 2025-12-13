@@ -11,27 +11,193 @@
         {
           "path": "/health",
           "method": "GET",
-          "description": "健康检查接口"
+          "description": "健康检查接口",
+          "parameters": {
+            "query": []
+          },
+          "response": {
+            "status": "ok",
+            "timestamp": "ISO字符串",
+            "service": "doubao-ai-api"
+          }
         },
         {
           "path": "/v1/chat/completions",
           "method": "POST",
-          "description": "聊天补全接口，支持豆包聊天功能"
+          "description": "聊天补全接口，支持豆包聊天功能",
+          "parameters": {
+            "body": {
+              "messages": {
+                "type": "array",
+                "required": true,
+                "description": "对话历史数组，最后一条必须是user角色",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "role": {
+                      "type": "string",
+                      "enum": ["user", "assistant"],
+                      "description": "消息角色"
+                    },
+                    "content": {
+                      "type": "string",
+                      "description": "消息内容"
+                    }
+                  }
+                }
+              },
+              "model": {
+                "type": "string",
+                "required": false,
+                "description": "模型名称，默认doubao-1.0"
+              },
+              "max_tokens": {
+                "type": "number",
+                "required": false,
+                "description": "最大token数"
+              },
+              "temperature": {
+                "type": "number",
+                "required": false,
+                "description": "温度参数，控制输出随机性"
+              }
+            }
+          },
+          "response": {
+            "id": "chatcmpl-xxx",
+            "object": "chat.completion",
+            "created": 1234567890,
+            "model": "doubao-1.0",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "回复内容"
+                },
+                "finish_reason": "stop"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 10,
+              "completion_tokens": 20,
+              "total_tokens": 30
+            }
+          }
         },
         {
           "path": "/v1/ocr/recognize",
           "method": "POST",
-          "description": "OCR识别接口，支持图片、URL、截图识别"
+          "description": "OCR识别接口，支持图片、URL、截图识别",
+          "parameters": {
+            "body": {
+              "image_url": {
+                "type": "string",
+                "required": false,
+                "description": "图片URL地址"
+              },
+              "image_base64": {
+                "type": "string",
+                "required": false,
+                "description": "base64编码的图片内容"
+              },
+              "question": {
+                "type": "string",
+                "required": false,
+                "description": "向豆包提问的内容，默认：图里有什么内容？"
+              },
+              "type": {
+                "type": "string",
+                "required": false,
+                "enum": ["screenshot"],
+                "description": "识别类型，screenshot表示屏幕截图"
+              }
+            }
+          },
+          "response": {
+            "id": "ocr-xxx",
+            "object": "ocr.recognize",
+            "created": 1234567890,
+            "model": "doubao-ocr-1.0",
+            "result": {
+              "text": "识别结果",
+              "success": true,
+              "original_result": {}
+            }
+          }
         },
         {
           "path": "/v1/moderations",
           "method": "POST",
-          "description": "是/否判断接口，支持文本和图片内容审核"
+          "description": "是/否判断接口，支持文本和图片内容审核",
+          "parameters": {
+            "body": {
+              "input": {
+                "type": ["string", "object"],
+                "required": false,
+                "description": "输入内容，可以是文本或包含image/file字段的对象",
+                "properties": {
+                  "image": {
+                    "type": "string",
+                    "description": "图片路径"
+                  },
+                  "file": {
+                    "type": "string",
+                    "description": "文件路径"
+                  }
+                }
+              },
+              "question": {
+                "type": "string",
+                "required": false,
+                "description": "提问内容，默认：Is this content acceptable?"
+              }
+            }
+          },
+          "response": {
+            "id": "mod-xxx",
+            "object": "moderation",
+            "created": 1234567890,
+            "model": "doubao-moderation-1.0",
+            "results": [
+              {
+                "flagged": false,
+                "categories": {
+                  "positive": true,
+                  "negative": false
+                },
+                "category_scores": {
+                  "positive": 0.99,
+                  "negative": 0.01
+                },
+                "original_result": "yes"
+              }
+            ]
+          }
         },
         {
           "path": "/v1/files/upload",
           "method": "POST",
-          "description": "文件上传接口"
+          "description": "文件上传接口",
+          "parameters": {
+            "body": {
+              "file": {
+                "type": "string",
+                "required": true,
+                "description": "base64编码的文件内容"
+              }
+            }
+          },
+          "response": {
+            "id": "file-xxx",
+            "object": "file",
+            "bytes": 1024,
+            "created_at": 1234567890,
+            "filename": "upload_xxx",
+            "purpose": "fine-tune",
+            "status": "processed",
+            "status_details": null
+          }
         }
       ]
     }
