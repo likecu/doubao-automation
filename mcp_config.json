@@ -2,9 +2,6 @@
   "mcpServers": {
     "doubao-ai-server": {
       "command": "node",
-      "args": [
-        "/Volumes/600g/app1/doubao获取/js/ai_server.js"
-      ],
       "port": 3001,
       "description": "豆包AI标准接口服务",
       "apis": [

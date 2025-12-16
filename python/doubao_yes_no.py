@@ -140,9 +140,11 @@ class DoubaoYesNo:
                                     longest_ai_response = content
                         
                         if longest_ai_response:
-                            # 提取"编辑分享"之前的内容
+                            # 提取"分享"或"编辑分享"之前的内容
                             if "编辑分享" in longest_ai_response:
                                 response = longest_ai_response.split("编辑分享")[0].strip()
+                            elif "分享" in longest_ai_response:
+                                response = longest_ai_response.split("分享")[0].strip()
                             else:
                                 response = longest_ai_response
                 
@@ -229,9 +231,11 @@ class DoubaoYesNo:
                                     longest_ai_response = content
                         
                         if longest_ai_response:
-                            # 提取"编辑分享"之前的内容
+                            # 提取"分享"或"编辑分享"之前的内容
                             if "编辑分享" in longest_ai_response:
                                 response = longest_ai_response.split("编辑分享")[0].strip()
+                            elif "分享" in longest_ai_response:
+                                response = longest_ai_response.split("分享")[0].strip()
                             else:
                                 response = longest_ai_response
                 
@@ -315,9 +319,11 @@ class DoubaoYesNo:
                                     longest_ai_response = content
                         
                         if longest_ai_response:
-                            # 提取"编辑分享"之前的内容
+                            # 提取"分享"或"编辑分享"之前的内容
                             if "编辑分享" in longest_ai_response:
                                 response = longest_ai_response.split("编辑分享")[0].strip()
+                            elif "分享" in longest_ai_response:
+                                response = longest_ai_response.split("分享")[0].strip()
                             else:
                                 response = longest_ai_response
                 

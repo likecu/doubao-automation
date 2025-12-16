@@ -867,7 +867,7 @@ class DoubaoBrowserServer {
                 throw new Error('文件上传失败');
             }
             console.log(`页面 ${pageId} 文件上传成功，等待2秒后发送消息...`);
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            await new Promise(resolve => setTimeout(resolve, 500));
 
             // 然后发送消息
             const sendSuccess = await this.sendMessage(pageId, message);

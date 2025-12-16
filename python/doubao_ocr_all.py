@@ -247,9 +247,11 @@ class DoubaoOCR:
                             if lower_content.startswith(lower_question):
                                 continue
                             
-                            # 提取"编辑分享"之前的内容作为实际回答
+                            # 提取"编辑分享"或"分享"之前的内容作为实际回答
                             if "编辑分享" in content:
                                 actual_response = content.split("编辑分享")[0].strip()
+                            elif "分享" in content:
+                                actual_response = content.split("分享")[0].strip()
                             else:
                                 actual_response = content
                             break

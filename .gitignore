@@ -45,3 +45,7 @@ page_*.png
 
 # 登录状态文件
 js/login_status.json
+
+# Gemini API配置和使用记录
+python/gemini_config.py
+python/gemini_usage.json

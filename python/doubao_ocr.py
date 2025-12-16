@@ -67,7 +67,9 @@ class DoubaoOCR:
             # 直接从chatHistory中提取实际回答，不依赖response字段
             chat_history = result.get("chatHistory", [])
             actual_response = ""
+            best_response = ""
             
+            # 遍历所有消息，找到最合适的回答
             for message in chat_history:
                 if message.get("type") == "ai" and message.get("content"):
                     content = message.get("content")
@@ -79,15 +81,29 @@ class DoubaoOCR:
                     if content.strip() == question:
                         continue
                     
-
-
+                    # 跳过只包含问题关键词的消息
+                    if content.strip() == question.split("？")[0].strip() + "？":
+                        continue
+                    
+                    # 跳过重复问题的消息
+                    if question in content and len(content) < len(question) + 10:
+                        continue
+                    
+                    # 清理内容
                     if "编辑分享" in content:
-                        actual_response = content.split("编辑分享")[0].strip()
+                        cleaned_content = content.split("编辑分享")[0].strip()
                     else:
-                        actual_response = content
-                    break
+                        cleaned_content = content.strip()
+                    
+                    # 对于普通问题，找到最长的AI回答
+                    if len(cleaned_content) > len(best_response):
+                        best_response = cleaned_content
             
-            # 如果没有找到合适的描述，使用response字段
+            # 如果没有找到是或否的回答，使用最长的回答
+            if not actual_response and best_response:
+                actual_response = best_response
+            
+            # 如果仍然没有找到合适的描述，使用response字段
             if not actual_response:
                 actual_response = result.get("response", "识别失败")
             
