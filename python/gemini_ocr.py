@@ -80,6 +80,83 @@ class GeminiOCR:
         self.model = genai.GenerativeModel(self.model_name)
         print(f"使用模型: {self.model_name}")
     
+    def ask_question(self, question):
+        """
+        直接向Gemini提问
+        :param question: 提问内容
+        :return: 回答结果
+        """
+        print(f"开始提问: {question}")
+        print(f"当前使用模型: {self.model_name}")
+        
+        # 尝试提问，支持模型切换
+        max_attempts = 3
+        current_attempt = 0
+        
+        while current_attempt < max_attempts:
+            try:
+                # 构建消息内容
+                contents = [question]
+                
+                # 调用Gemini API
+                response = self.model.generate_content(contents)
+                
+                # 估算使用的令牌数（简单估算）
+                tokens_used = len(response.text) * 1.5  # 粗略估算：每个汉字约1.5个令牌
+                
+                # 更新本地使用量记录
+                self.update_usage(self.model_name, int(tokens_used))
+                
+                print(f"使用量更新: {self.model_name} - RPM: +1, TPM: +{int(tokens_used)}")
+                
+                # 返回结果对象
+                return {
+                    "success": True,
+                    "response": response.text,
+                    "model": self.model_name,
+                    "tokens_used": int(tokens_used),
+                    "chatHistory": [
+                        {"type": "user", "content": question},
+                        {"type": "ai", "content": response.text}
+                    ]
+                }
+                
+            except Exception as e:
+                error_msg = str(e)
+                print(f"调用Gemini API时发生错误: {error_msg}")
+                
+                # 检查是否是配额超限错误
+                if "quota exceeded" in error_msg.lower() or "429" in error_msg:
+                    print(f"模型 {self.model_name} 配额已用完，尝试切换模型或API密钥...")
+                    current_attempt += 1
+                    
+                    # 尝试切换API密钥
+                    if len(GEMINI_API_KEYS) > 1:
+                        self.current_key_index = (self.current_key_index + 1) % len(GEMINI_API_KEYS)
+                        self.api_key = GEMINI_API_KEYS[self.current_key_index]
+                        genai.configure(api_key=self.api_key)
+                        print(f"已切换到新API密钥: {self.api_key[:10]}...")
+                    
+                    # 从优先级列表中移除当前模型
+                    if self.model_name in self.model_priority:
+                        self.model_priority.remove(self.model_name)
+                    
+                    # 选择新的模型
+                    new_model = self.select_best_model()
+                    if new_model != self.model_name:
+                        self.model_name = new_model
+                        self.model = genai.GenerativeModel(self.model_name)
+                        print(f"已切换到新模型: {self.model_name}")
+                    else:
+                        print("没有可用的替代模型")
+                        break
+                else:
+                    # 其他错误，直接返回
+                    return None
+        
+        print(f"尝试了 {current_attempt} 次后仍无法完成提问")
+        return None
+    
     def recognize_image(self, image_path, question="图里有什么内容？"):
         """
         通过Gemini API识别图片内容
@@ -289,6 +366,83 @@ class GeminiOCR:
         # 如果所有模型都不可用，返回默认模型
         return "gemini-2.5-flash"
     
+    def ask_question(self, question):
+        """
+        直接向Gemini提问
+        :param question: 提问内容
+        :return: 提问结果对象
+        """
+        print(f"开始提问: {question}")
+        print(f"当前使用模型: {self.model_name}")
+        
+        # 尝试提问，支持模型切换
+        max_attempts = 3
+        current_attempt = 0
+        
+        while current_attempt < max_attempts:
+            try:
+                # 直接使用文本内容
+                contents = [question]
+                
+                # 调用Gemini API
+                response = self.model.generate_content(contents)
+                
+                # 估算使用的令牌数（简单估算）
+                tokens_used = len(response.text) * 1.5  # 粗略估算：每个汉字约1.5个令牌
+                
+                # 更新本地使用量记录
+                self.update_usage(self.model_name, int(tokens_used))
+                
+                print(f"使用量更新: {self.model_name} - RPM: +1, TPM: +{int(tokens_used)}")
+                
+                # 返回结果对象
+                return {
+                    "success": True,
+                    "response": response.text,
+                    "model": self.model_name,
+                    "tokens_used": int(tokens_used),
+                    "chatHistory": [
+                        {"type": "user", "content": question},
+                        {"type": "ai", "content": response.text}
+                    ]
+                }
+                
+            except Exception as e:
+                error_msg = str(e)
+                print(f"调用Gemini API时发生错误: {error_msg}")
+                
+                # 检查是否是配额超限错误
+                if "quota exceeded" in error_msg.lower() or "429" in error_msg:
+                    print(f"模型 {self.model_name} 配额已用完，尝试切换模型或API密钥...")
+                    current_attempt += 1
+                    
+                    # 尝试切换API密钥
+                    if len(GEMINI_API_KEYS) > 1:
+                        self.current_key_index = (self.current_key_index + 1) % len(GEMINI_API_KEYS)
+                        self.api_key = GEMINI_API_KEYS[self.current_key_index]
+                        genai.configure(api_key=self.api_key)
+                        print(f"已切换到新API密钥: {self.api_key[:10]}...")
+                    
+                    # 从优先级列表中移除当前模型
+                    if self.model_name in self.model_priority:
+                        self.model_priority.remove(self.model_name)
+                    
+                    # 选择新的模型
+                    new_model = self.select_best_model()
+                    if new_model != self.model_name:
+                        self.model_name = new_model
+                        self.model = genai.GenerativeModel(self.model_name)
+                        print(f"已切换到新模型: {self.model_name}")
+                    else:
+                        print("没有可用的替代模型")
+                        break
+                else:
+                    # 其他错误，直接返回
+                    return None
+        
+        print(f"尝试了 {current_attempt} 次后仍无法完成提问")
+        return None
+    
     def check_quota(self, show_details=False):
         """
         检查Gemini API限额
@@ -373,9 +527,9 @@ def main():
     """
     import json
     
-    parser = argparse.ArgumentParser(description="Gemini图片OCR识别工具")
-    parser.add_argument("image_path", help="图片路径", nargs='?')
-    parser.add_argument("--question", default="图里有什么内容？", help="提问内容")
+    parser = argparse.ArgumentParser(description="Gemini图片OCR识别工具和直接提问工具")
+    parser.add_argument("image_path", help="图片路径（可选，不提供则直接提问）", nargs='?')
+    parser.add_argument("--question", default="图里有什么内容？", help="提问内容（图片识别时默认为'图里有什么内容？'，直接提问时为必填）")
     # 保留server参数以保持兼容性，但实际上Gemini不使用服务器
     parser.add_argument("--server", default="", help="(Gemini不使用)服务器地址")
     # 保留headless参数以保持兼容性
@@ -394,10 +548,15 @@ def main():
         ocr.check_quota(args.quota_details)
         return
     
-    # 执行识别
-    if not args.image_path:
-        parser.error("图片路径是必填参数（使用--check-quota时除外）")
-    result = ocr.recognize_image(args.image_path, args.question)
+    # 检查参数：直接提问时必须提供question
+    if not args.image_path and args.question == "图里有什么内容？":
+        parser.error("直接提问时必须使用--question参数提供问题内容")
+    
+    # 执行识别或提问
+    if args.image_path:
+        result = ocr.recognize_image(args.image_path, args.question)
+    else:
+        result = ocr.ask_question(args.question)
     
     if result:
         if args.verbose:
