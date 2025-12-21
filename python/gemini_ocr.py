@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/Users/aaa/python-sdk/python3.13.2/bin/python
 # -*- coding: utf-8 -*-
 """
 Gemini 图片OCR识别Python调用脚本
@@ -37,6 +37,7 @@ class GeminiOCR:
             "gemini-2.5-pro": {"rpm_limit": 3, "tpm_limit": 100000, "rpd_limit": 10},
             
             # Gemma 3 模型
+            "gemma-3-27b-it": {"rpm_limit": 5, "tpm_limit": 100000, "rpd_limit": 15},
             "gemma-3-12b-it": {"rpm_limit": 10, "tpm_limit": 50000, "rpd_limit": 20},
             "gemma-3-2b-it": {"rpm_limit": 20, "tpm_limit": 100000, "rpd_limit": 40},
             "gemma-3-9b-it": {"rpm_limit": 15, "tpm_limit": 75000, "rpd_limit": 30},
@@ -64,30 +65,42 @@ class GeminiOCR:
             "gemini-experimental": {"rpm_limit": 2, "tpm_limit": 5000, "rpd_limit": 5}
         }
         
-        # 模型优先级列表（优先使用高限额且高性能模型）
-        self.model_priority = [
-            "gemini-2.5-flash-lite",  # 高限额标准模型
-            "gemini-2.5-flash",  # 主要使用模型
-            "gemini-1.5-flash",
-            "gemma-3-2b-it",  # 中限额模型
-            "gemma-3-9b-it",
-            "gemma-2-9b-it",
-            "gemma-1.1-7b-it",
-            "gemma-1-7b-it",
-            "gemma-2-2b-it",  # 高限额轻量级模型
-            "gemma-1.1-2b-it",
-            "gemma-1-2b-it",
-            "gemini-nano",
-            "gemma-3-12b-it",  # 低限额模型
-            "gemma-2-27b-it",
-            "gemini-2.5-pro",  # 专业模型
-            "gemini-1.5-pro",
-            "gemini-ultra",
-            "gemini-experimental"
-        ]
+        # 模型能力配置文件路径
+        self.model_capabilities_file = os.path.join(os.path.dirname(__file__), "model_capabilities.json")
         
-        # 选择合适的模型
-        self.model_name = self.select_best_model()
+        # 检查模型能力配置文件是否存在，如果不存在则生成
+        if not os.path.exists(self.model_capabilities_file):
+            self.generate_model_capabilities()
+        
+        # 加载模型能力配置
+        self.model_capabilities = self.load_model_capabilities()
+        
+        # 模型优先级列表（优先使用高限额且高性能模型）
+        self.model_priority = self.model_capabilities.get("model_priority", {
+            "text_only": [
+                "gemma-3-27b-it",
+                "gemini-2.5-flash-lite",
+                "gemini-2.5-flash",
+                "gemma-3-2b-it",
+                "gemma-3-9b-it",
+                "gemma-3-12b-it",
+                "gemma-2-27b-it",
+                "gemma-2-9b-it",
+                "gemma-1.1-7b-it",
+                "gemma-1-7b-it",
+                "gemma-2-2b-it",
+                "gemma-1.1-2b-it",
+                "gemma-1-2b-it",
+                "gemini-nano",
+                "gemini-2.5-pro",
+                "gemini-1.5-pro",
+                "gemini-ultra",
+                "gemini-experimental"
+            ]
+        })
+        
+        # 选择合适的模型（默认文本模型）
+        self.model_name = self.select_best_model(task_type="text_only")
         print(f"使用模型: {self.model_name}")
     
     def ask_question(self, question):
@@ -96,6 +109,8 @@ class GeminiOCR:
         :param question: 提问内容
         :return: 提问结果对象
         """
+        # 选择适合文本提问的模型
+        self.model_name = self.select_best_model(task_type="text_only")
         print(f"开始提问: {question}")
         print(f"当前使用模型: {self.model_name}")
         
@@ -151,11 +166,11 @@ class GeminiOCR:
                         print(f"已切换到新API密钥: {self.api_key[:10]}...")
                     
                     # 从优先级列表中移除当前模型
-                    if self.model_name in self.model_priority:
-                        self.model_priority.remove(self.model_name)
+                    if self.model_name in self.model_priority.get("text_only", []):
+                        self.model_priority["text_only"].remove(self.model_name)
                     
                     # 选择新的模型
-                    new_model = self.select_best_model()
+                    new_model = self.select_best_model(task_type="text_only")
                     if new_model != self.model_name:
                         self.model_name = new_model
                         print(f"已切换到新模型: {self.model_name}")
@@ -183,6 +198,8 @@ class GeminiOCR:
             print(f"图片文件不存在: {image_path}")
             return None
         
+        # 选择适合图像识别的模型
+        self.model_name = self.select_best_model(task_type="image_supported")
         print(f"开始识别图片: {image_path}")
         print(f"提问内容: {question}")
         print(f"当前使用模型: {self.model_name}")
@@ -250,11 +267,11 @@ class GeminiOCR:
                         print(f"已切换到新API密钥: {self.api_key[:10]}...")
                     
                     # 从优先级列表中移除当前模型
-                    if self.model_name in self.model_priority:
-                        self.model_priority.remove(self.model_name)
+                    if self.model_name in self.model_priority.get("image_supported", []):
+                        self.model_priority["image_supported"].remove(self.model_name)
                     
                     # 选择新的模型
-                    new_model = self.select_best_model()
+                    new_model = self.select_best_model(task_type="image_supported")
                     if new_model != self.model_name:
                         self.model_name = new_model
                         print(f"已切换到新模型: {self.model_name}")
@@ -282,6 +299,8 @@ class GeminiOCR:
             print(f"文档文件不存在: {document_path}")
             return None
         
+        # 选择适合文档处理的模型
+        self.model_name = self.select_best_model(task_type="document_supported")
         print(f"开始处理文档: {document_path}")
         print(f"提问内容: {question}")
         print(f"当前使用模型: {self.model_name}")
@@ -349,11 +368,11 @@ class GeminiOCR:
                         print(f"已切换到新API密钥: {self.api_key[:10]}...")
                     
                     # 从优先级列表中移除当前模型
-                    if self.model_name in self.model_priority:
-                        self.model_priority.remove(self.model_name)
+                    if self.model_name in self.model_priority.get("document_supported", []):
+                        self.model_priority["document_supported"].remove(self.model_name)
                     
                     # 选择新的模型
-                    new_model = self.select_best_model()
+                    new_model = self.select_best_model(task_type="document_supported")
                     if new_model != self.model_name:
                         self.model_name = new_model
                         print(f"已切换到新模型: {self.model_name}")
@@ -377,6 +396,70 @@ class GeminiOCR:
         if result and result.get("success"):
             return result.get("response", "识别失败")
         return "识别失败"
+    
+    def load_model_capabilities(self):
+        """
+        加载模型能力配置文件
+        :return: 模型能力配置字典
+        """
+        if not os.path.exists(self.model_capabilities_file):
+            print(f"警告: {self.model_capabilities_file} 文件不存在，使用默认配置")
+            return {
+                "model_capabilities": {},
+                "model_priority": {
+                    "text_only": [
+                        "gemini-2.5-flash-lite",
+                        "gemini-2.5-flash",
+                        "gemini-1.5-flash",
+                        "gemma-3-2b-it",
+                        "gemma-3-9b-it",
+                        "gemma-2-9b-it",
+                        "gemma-1.1-7b-it",
+                        "gemma-1-7b-it",
+                        "gemma-2-2b-it",
+                        "gemma-1.1-2b-it",
+                        "gemma-1-2b-it",
+                        "gemini-nano",
+                        "gemma-3-12b-it",
+                        "gemma-2-27b-it",
+                        "gemini-2.5-pro",
+                        "gemini-1.5-pro",
+                        "gemini-ultra",
+                        "gemini-experimental"
+                    ]
+                }
+            }
+        
+        try:
+            with open(self.model_capabilities_file, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except json.JSONDecodeError:
+            print(f"警告: {self.model_capabilities_file} 文件格式错误，使用默认配置")
+            return {
+                "model_capabilities": {},
+                "model_priority": {
+                    "text_only": [
+                        "gemini-2.5-flash-lite",
+                        "gemini-2.5-flash",
+                        "gemini-1.5-flash",
+                        "gemma-3-2b-it",
+                        "gemma-3-9b-it",
+                        "gemma-2-9b-it",
+                        "gemma-1.1-7b-it",
+                        "gemma-1-7b-it",
+                        "gemma-2-2b-it",
+                        "gemma-1.1-2b-it",
+                        "gemma-1-2b-it",
+                        "gemini-nano",
+                        "gemma-3-12b-it",
+                        "gemma-2-27b-it",
+                        "gemini-2.5-pro",
+                        "gemini-1.5-pro",
+                        "gemini-ultra",
+                        "gemini-experimental"
+                    ]
+                }
+            }
     
     def load_usage_data(self):
         """
@@ -472,17 +555,193 @@ class GeminiOCR:
         
         return True
     
-    def select_best_model(self):
+    def load_model_capabilities(self):
+        """
+        加载模型能力配置
+        :return: 模型能力配置字典
+        """
+        if not os.path.exists(self.model_capabilities_file):
+            return {}
+        
+        try:
+            with open(self.model_capabilities_file, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except json.JSONDecodeError:
+            print(f"警告: {self.model_capabilities_file} 文件格式错误，将重新创建")
+            self.generate_model_capabilities()
+            return self.load_model_capabilities()
+    
+    def generate_model_capabilities(self):
+        """
+        生成模型能力配置文件
+        测试每个模型的文本生成、图像理解和文档处理能力
+        """
+        print(f"\n=== 生成模型能力配置文件 ===")
+        print(f"将测试所有可用模型并生成 {self.model_capabilities_file}")
+        
+        # 测试图片和文档路径（使用默认测试文件）
+        test_image_path = "/Volumes/600g/app1/doubao获取/test_valid_image.png"
+        test_document_path = None  # 可以根据需要添加测试文档
+        
+        # 获取所有可用模型
+        models = list(self.client.models.list())
+        print(f"发现 {len(models)} 个可用模型")
+        
+        # 测试结果存储
+        model_capabilities = {}
+        text_only_models = []
+        image_supported_models = []
+        document_supported_models = []
+        
+        # 遍历所有模型进行测试
+        for model in models:
+            model_name = model.name
+            print(f"\n测试模型: {model_name}")
+            
+            # 初始化模型能力
+            capabilities = {
+                "text_generation": False,
+                "image_understanding": False,
+                "document_processing": False
+            }
+            
+            # 测试文本生成能力
+            try:
+                response = self.client.models.generate_content(
+                    model=model_name,
+                    contents=["你好，简单介绍一下自己。"]
+                )
+                capabilities["text_generation"] = True
+                print(f"  ✓ 文本生成能力: 支持")
+            except Exception as e:
+                print(f"  ✗ 文本生成能力: 不支持 - {str(e)[:50]}...")
+            
+            # 测试图像理解能力（如果图片存在）
+            if os.path.exists(test_image_path):
+                try:
+                    from google.genai import types
+                    with open(test_image_path, 'rb') as f:
+                        image_bytes = f.read()
+                    
+                    contents = [
+                        types.Part.from_bytes(
+                            data=image_bytes,
+                            mime_type='image/jpeg' if test_image_path.endswith('.jpg') or test_image_path.endswith('.jpeg') else 'image/png'
+                        ),
+                        "图里有什么内容？"
+                    ]
+                    
+                    response = self.client.models.generate_content(
+                        model=model_name,
+                        contents=contents
+                    )
+                    capabilities["image_understanding"] = True
+                    print(f"  ✓ 图像理解能力: 支持")
+                except Exception as e:
+                    print(f"  ✗ 图像理解能力: 不支持 - {str(e)[:50]}...")
+            
+            # 测试文档处理能力（如果有测试文档）
+            if test_document_path and os.path.exists(test_document_path):
+                try:
+                    from google.genai import types
+                    with open(test_document_path, 'rb') as f:
+                        doc_bytes = f.read()
+                    
+                    contents = [
+                        types.Part.from_bytes(
+                            data=doc_bytes,
+                            mime_type='application/pdf'
+                        ),
+                        "文档内容是什么？"
+                    ]
+                    
+                    response = self.client.models.generate_content(
+                        model=model_name,
+                        contents=contents
+                    )
+                    capabilities["document_processing"] = True
+                    print(f"  ✓ 文档处理能力: 支持")
+                except Exception as e:
+                    print(f"  ✗ 文档处理能力: 不支持 - {str(e)[:50]}...")
+            
+            # 保存模型能力
+            model_capabilities[model_name] = capabilities
+            
+            # 提取模型简称
+            short_name = model_name.replace("models/", "")
+            
+            # 分类模型
+            if capabilities["text_generation"]:
+                text_only_models.append(short_name)
+                
+                if capabilities["image_understanding"]:
+                    image_supported_models.append(short_name)
+                
+                if capabilities["document_processing"]:
+                    document_supported_models.append(short_name)
+        
+        # 保存配置到文件
+        config = {
+            "model_capabilities": model_capabilities,
+            "model_priority": {
+                "text_only": text_only_models,
+                "image_supported": image_supported_models,
+                "document_supported": document_supported_models
+            }
+        }
+        
+        try:
+            with open(self.model_capabilities_file, 'w', encoding='utf-8') as f:
+                json.dump(config, f, indent=2, ensure_ascii=False)
+            print(f"\n=== 模型能力配置文件生成完成 ===")
+            print(f"配置文件已保存到: {self.model_capabilities_file}")
+            print(f"文本生成模型: {len(text_only_models)} 个")
+            print(f"图像支持模型: {len(image_supported_models)} 个")
+            print(f"文档支持模型: {len(document_supported_models)} 个")
+        except Exception as e:
+            print(f"\n=== 生成模型能力配置文件失败 ===")
+            print(f"错误信息: {e}")
+    
+    def select_best_model(self, task_type="text_only"):
         """
         选择最优模型（优先使用无限制且未达本地限额的模型）
+        :param task_type: 任务类型，可选值：text_only, image_supported, document_supported
         :return: 最优模型名称
         """
-        for model_name in self.model_priority:
+        # 获取对应任务类型的模型优先级列表
+        priority_list = self.model_priority.get(task_type, [])
+        
+        # 如果没有找到对应任务类型的模型列表，使用默认模型列表，将gemma-3-27b-it设为最高优先级
+        if not priority_list:
+            priority_list = [
+                "gemma-3-27b-it",  # 用户指定的最高优先级模型
+                "gemini-2.5-flash-lite",
+                "gemini-2.5-flash",
+                "gemini-1.5-flash",
+                "gemma-3-2b-it",
+                "gemma-3-9b-it",
+                "gemma-3-12b-it",
+                "gemma-2-27b-it",
+                "gemma-2-9b-it",
+                "gemma-1.1-7b-it",
+                "gemma-1-7b-it",
+                "gemma-2-2b-it",
+                "gemma-1.1-2b-it",
+                "gemma-1-2b-it",
+                "gemini-nano",
+                "gemini-2.5-pro",
+                "gemini-1.5-pro",
+                "gemini-ultra",
+                "gemini-experimental"
+            ]
+        
+        # 遍历优先级列表，选择第一个可用模型
+        for model_name in priority_list:
             if self.is_model_available(model_name):
                 return model_name
         
-        # 如果所有模型都不可用，返回默认模型
-        return "gemini-2.5-flash"
+        # 如果所有模型都不可用，返回用户指定的最高优先级模型gemma-3-27b
+        return "gemma-3-27b"
     
     def check_quota(self, show_details=False):
         """

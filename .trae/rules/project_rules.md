@@ -1,0 +1,1 @@
+本项目必须使用下面环境的python3.13.2，使用~/python-sdk/python3.13.2/bin/python

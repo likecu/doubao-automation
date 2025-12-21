@@ -1,0 +1,95 @@
+{
+  "model_capabilities": {
+    "models/gemini-2.5-flash": {
+      "text_generation": true,
+      "image_understanding": true,
+      "document_processing": true
+    },
+    "models/gemini-2.5-pro": {
+      "text_generation": true,
+      "image_understanding": true,
+      "document_processing": true
+    },
+    "models/gemma-3-1b-it": {
+      "text_generation": true,
+      "image_understanding": false,
+      "document_processing": false
+    },
+    "models/gemma-3-4b-it": {
+      "text_generation": true,
+      "image_understanding": false,
+      "document_processing": false
+    },
+    "models/gemma-3-12b-it": {
+      "text_generation": true,
+      "image_understanding": true,
+      "document_processing": false
+    },
+    "models/gemma-3-27b-it": {
+      "text_generation": true,
+      "image_understanding": false,
+      "document_processing": false
+    },
+    "models/gemini-flash-latest": {
+      "text_generation": true,
+      "image_understanding": true,
+      "document_processing": true
+    },
+    "models/gemini-pro-latest": {
+      "text_generation": true,
+      "image_understanding": true,
+      "document_processing": true
+    },
+    "models/gemini-2.5-flash-lite": {
+      "text_generation": true,
+      "image_understanding": true,
+      "document_processing": true
+    },
+    "models/gemini-3-pro-preview": {
+      "text_generation": true,
+      "image_understanding": true,
+      "document_processing": true
+    },
+    "models/gemini-3-flash-preview": {
+      "text_generation": true,
+      "image_understanding": true,
+      "document_processing": true
+    }
+  },
+  "model_priority": {
+    "text_only": [
+      "gemma-3-27b-it",
+      "gemma-3-12b-it",
+      "gemma-3-4b-it",
+      "gemma-3-1b-it",
+      "gemini-2.5-flash-lite",
+      "gemini-2.5-flash",
+      "gemini-2.5-pro",
+      "gemini-flash-latest",
+      "gemini-pro-latest",
+      "gemini-3-pro-preview",
+      "gemini-3-flash-preview"
+    ],
+    "image_supported": [
+      "gemma-3-27b-it",
+      "gemma-3-12b-it",
+      "gemini-2.5-flash-lite",
+      "gemini-2.5-flash",
+      "gemini-2.5-pro",
+      "gemini-flash-latest",
+      "gemini-pro-latest",
+      "gemini-3-pro-preview",
+      "gemini-3-flash-preview"
+    ],
+    "document_supported": [
+      "gemma-3-27b-it",
+      "gemini-2.5-flash-lite",
+      "gemini-2.5-flash",
+      "gemini-2.5-pro",
+      "gemini-flash-latest",
+      "gemini-pro-latest",
+      "gemini-3-pro-preview",
+      "gemini-3-flash-preview"
+    ]
+  }
+}
