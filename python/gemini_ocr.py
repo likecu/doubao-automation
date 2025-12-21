@@ -39,6 +39,8 @@ class GeminiOCR:
             # Gemma 3 模型
             "gemma-3-27b-it": {"rpm_limit": 5, "tpm_limit": 100000, "rpd_limit": 15},
             "gemma-3-12b-it": {"rpm_limit": 10, "tpm_limit": 50000, "rpd_limit": 20},
+            "gemma-3-4b-it": {"rpm_limit": 15, "tpm_limit": 75000, "rpd_limit": 30},
+            "gemma-3-1b-it": {"rpm_limit": 20, "tpm_limit": 100000, "rpd_limit": 40},
             "gemma-3-2b-it": {"rpm_limit": 20, "tpm_limit": 100000, "rpd_limit": 40},
             "gemma-3-9b-it": {"rpm_limit": 15, "tpm_limit": 75000, "rpd_limit": 30},
             
@@ -62,7 +64,11 @@ class GeminiOCR:
             # 其他模型
             "gemini-ultra": {"rpm_limit": 5, "tpm_limit": 10000, "rpd_limit": 10},
             "gemini-nano": {"rpm_limit": 50, "tpm_limit": 200000, "rpd_limit": 100},
-            "gemini-experimental": {"rpm_limit": 2, "tpm_limit": 5000, "rpd_limit": 5}
+            "gemini-experimental": {"rpm_limit": 2, "tpm_limit": 5000, "rpd_limit": 5},
+            "gemini-flash-latest": {"rpm_limit": 5, "tpm_limit": 250000, "rpd_limit": 20},
+            "gemini-pro-latest": {"rpm_limit": 3, "tpm_limit": 100000, "rpd_limit": 10},
+            "gemini-3-pro-preview": {"rpm_limit": 3, "tpm_limit": 100000, "rpd_limit": 10},
+            "gemini-3-flash-preview": {"rpm_limit": 5, "tpm_limit": 250000, "rpd_limit": 20}
         }
         
         # 模型能力配置文件路径
@@ -79,11 +85,11 @@ class GeminiOCR:
         self.model_priority = self.model_capabilities.get("model_priority", {
             "text_only": [
                 "gemma-3-27b-it",
+                "gemma-3-12b-it",
                 "gemini-2.5-flash-lite",
                 "gemini-2.5-flash",
                 "gemma-3-2b-it",
                 "gemma-3-9b-it",
-                "gemma-3-12b-it",
                 "gemma-2-27b-it",
                 "gemma-2-9b-it",
                 "gemma-1.1-7b-it",
@@ -94,6 +100,22 @@ class GeminiOCR:
                 "gemini-nano",
                 "gemini-2.5-pro",
                 "gemini-1.5-pro",
+                "gemini-ultra",
+                "gemini-experimental"
+            ],
+            "image_supported": [
+                "gemini-2.5-flash",
+                "gemini-2.5-flash-lite",
+                "gemini-1.5-flash",
+                "gemini-1.5-pro",
+                "gemini-ultra",
+                "gemini-experimental"
+            ],
+            "document_supported": [
+                "gemini-2.5-flash",
+                "gemini-2.5-flash-lite",
+                "gemini-1.5-pro",
+                "gemini-1.5-flash",
                 "gemini-ultra",
                 "gemini-experimental"
             ]
@@ -409,7 +431,33 @@ class GeminiOCR:
         
         try:
             with open(self.usage_file, 'r', encoding='utf-8') as f:
-                return json.load(f)
+                usage_data = json.load(f)
+            
+            # 检查数据格式是否为旧格式
+            today = datetime.date.today().isoformat()
+            if today in usage_data and isinstance(usage_data[today], dict):
+                # 检查旧格式的标志：直接包含模型名称作为键
+                has_old_format = False
+                for key in usage_data[today]:
+                    if isinstance(usage_data[today][key], dict) and "rpm_used" in usage_data[today][key]:
+                        has_old_format = True
+                        break
+                
+                if has_old_format:
+                    # 转换为新格式
+                    new_usage_data = {}
+                    for date in usage_data:
+                        new_usage_data[date] = {
+                            "model_stats": {},
+                            "minute_stats": {}
+                        }
+                        for model in usage_data[date]:
+                            new_usage_data[date]["model_stats"][model] = {
+                                "rpd_used": usage_data[date][model]["rpd_used"]
+                            }
+                    usage_data = new_usage_data
+            
+            return usage_data
         except json.JSONDecodeError:
             print(f"警告: {self.usage_file} 文件格式错误，将重新创建")
             return {}
@@ -432,27 +480,63 @@ class GeminiOCR:
         :param tokens_used: 使用的令牌数
         """
         today = datetime.date.today().isoformat()
+        now = datetime.datetime.now()
+        current_minute = now.strftime("%Y-%m-%d %H:%M")
+        
         usage_data = self.load_usage_data()
         
         # 初始化今天的数据
         if today not in usage_data:
-            usage_data[today] = {}
+            usage_data[today] = {
+                "model_stats": {},
+                "minute_stats": {}
+            }
         
-        # 初始化模型数据
-        if model_name not in usage_data[today]:
-            usage_data[today][model_name] = {
-                "rpm_used": 0,
-                "tpm_used": 0,
-                "rpd_used": 0
+        # 初始化模型当天统计数据
+        if model_name not in usage_data[today]["model_stats"]:
+            usage_data[today]["model_stats"][model_name] = {
+                "rpd_used": 0  # 当天总请求数
+            }
+        
+        # 初始化当前分钟统计数据
+        if current_minute not in usage_data[today]["minute_stats"]:
+            usage_data[today]["minute_stats"][current_minute] = {}
+        
+        if model_name not in usage_data[today]["minute_stats"][current_minute]:
+            usage_data[today]["minute_stats"][current_minute][model_name] = {
+                "rpm_used": 0,  # 当分钟请求数
+                "tpm_used": 0   # 当分钟令牌数
             }
         
         # 更新使用量
-        usage_data[today][model_name]["rpm_used"] += 1  # 每次调用增加一个请求
-        usage_data[today][model_name]["tpm_used"] += tokens_used
-        usage_data[today][model_name]["rpd_used"] += 1  # 每次调用增加一个请求
+        usage_data[today]["model_stats"][model_name]["rpd_used"] += 1  # 当天总请求数+1
+        usage_data[today]["minute_stats"][current_minute][model_name]["rpm_used"] += 1  # 当前分钟请求数+1
+        usage_data[today]["minute_stats"][current_minute][model_name]["tpm_used"] += tokens_used  # 当前分钟令牌数增加
+        
+        # 清理旧的分钟统计数据（只保留最近10分钟的数据）
+        self.cleanup_old_minute_stats(usage_data, today, now)
         
         # 保存数据
         self.save_usage_data(usage_data)
+    
+    def cleanup_old_minute_stats(self, usage_data, today, now):
+        """
+        清理旧的分钟统计数据，只保留最近10分钟的数据
+        :param usage_data: 使用量数据字典
+        :param today: 今天的日期字符串
+        :param now: 当前时间对象
+        """
+        if today not in usage_data or "minute_stats" not in usage_data[today]:
+            return
+        
+        minute_stats = usage_data[today]["minute_stats"]
+        cutoff_time = now - datetime.timedelta(minutes=10)
+        
+        # 遍历并删除超过10分钟的统计数据
+        for minute_str in list(minute_stats.keys()):
+            minute_time = datetime.datetime.strptime(minute_str, "%Y-%m-%d %H:%M")
+            if minute_time < cutoff_time:
+                del minute_stats[minute_str]
     
     def get_today_usage(self, model_name):
         """
@@ -461,36 +545,36 @@ class GeminiOCR:
         :return: 使用量字典 {"rpm_used": 0, "tpm_used": 0, "rpd_used": 0}
         """
         today = datetime.date.today().isoformat()
+        now = datetime.datetime.now()
+        current_minute = now.strftime("%Y-%m-%d %H:%M")
+        
         usage_data = self.load_usage_data()
         
-        if today in usage_data and model_name in usage_data[today]:
-            return usage_data[today][model_name]
-        return {"rpm_used": 0, "tpm_used": 0, "rpd_used": 0}
+        # 初始化返回值
+        rpm_used = 0
+        tpm_used = 0
+        rpd_used = 0
+        
+        # 获取当天总请求数
+        if today in usage_data and "model_stats" in usage_data[today]:
+            if model_name in usage_data[today]["model_stats"]:
+                rpd_used = usage_data[today]["model_stats"][model_name].get("rpd_used", 0)
+        
+        # 获取当前分钟的请求数和令牌数
+        if today in usage_data and "minute_stats" in usage_data[today]:
+            if current_minute in usage_data[today]["minute_stats"]:
+                if model_name in usage_data[today]["minute_stats"][current_minute]:
+                    rpm_used = usage_data[today]["minute_stats"][current_minute][model_name].get("rpm_used", 0)
+                    tpm_used = usage_data[today]["minute_stats"][current_minute][model_name].get("tpm_used", 0)
+        
+        return {"rpm_used": rpm_used, "tpm_used": tpm_used, "rpd_used": rpd_used}
     
     def is_model_available(self, model_name):
         """
-        检查模型是否可用（本地使用量未达限额）
+        检查模型是否可用（不再进行限额检查，所有模型都可用）
         :param model_name: 模型名称
         :return: 是否可用
         """
-        if model_name not in self.rate_limits:
-            return False
-        
-        usage = self.get_today_usage(model_name)
-        limits = self.rate_limits[model_name]
-        
-        # 检查RPM（每分钟请求数）
-        if usage["rpm_used"] >= limits["rpm_limit"]:
-            return False
-        
-        # 检查TPM（每分钟令牌数）
-        if usage["tpm_used"] >= limits["tpm_limit"]:
-            return False
-        
-        # 检查RPD（每天请求数）
-        if usage["rpd_used"] >= limits["rpd_limit"]:
-            return False
-        
         return True
     
     def load_model_capabilities(self):
@@ -642,11 +726,23 @@ class GeminiOCR:
     
     def select_best_model(self, task_type="text_only"):
         """
-        选择最优模型（只使用gemma-3-27b-it）
+        根据优先级选择最优模型
         :param task_type: 任务类型，可选值：text_only, image_supported, document_supported
         :return: 最优模型名称
         """
-        # 用户要求只使用gemma-3-27b模型
+        # 获取对应任务类型的模型优先级列表
+        priority_list = self.model_priority.get(task_type, [])
+        
+        # 如果没有对应任务类型的模型列表，使用默认的text_only列表
+        if not priority_list:
+            priority_list = self.model_priority.get("text_only", [])
+        
+        # 遍历优先级列表，选择第一个可用的模型
+        for model_name in priority_list:
+            if self.is_model_available(model_name):
+                return model_name
+        
+        # 如果没有可用模型，默认使用gemma-3-27b-it
         return "gemma-3-27b-it"
     
     def check_quota(self, show_details=False):
@@ -668,7 +764,7 @@ class GeminiOCR:
             # 显示详细的速率限制信息
             if show_details:
                 print("\n=== Gemini 模型速率限制详情 ===")
-                print("\n模型名称\t\t\t\t\t类别\t\tRPM\t\tTPM\t\tRPD")
+                print("\n模型名称\t\t\t\t类别\t\tRPM\t\tTPM\t\tRPD")
                 print("-" * 120)
                 
                 # 模型速率限制数据
@@ -682,11 +778,12 @@ class GeminiOCR:
                     ("gemma-3-9b-it", "文本模型", "6 / 15", "750 / 75K", "12 / 30"),
                     ("gemma-2-27b-it", "文本模型", "4 / 10", "500 / 50K", "8 / 20"),
                     ("gemma-2-9b-it", "文本模型", "5 / 20", "1K / 100K", "10 / 40"),
-                    ("gemma-2-2b-it", "轻量级文本模型", "10 / 50", "2K / 200K", "20 / 100"),
                     ("gemma-1.1-7b-it", "文本模型", "5 / 20", "1K / 100K", "10 / 40"),
-                    ("gemma-1.1-2b-it", "轻量级文本模型", "10 / 50", "2K / 200K", "20 / 100"),
                     ("gemma-1-7b-it", "文本模型", "5 / 20", "1K / 100K", "10 / 40"),
+                    ("gemma-2-2b-it", "轻量级文本模型", "10 / 50", "2K / 200K", "20 / 100"),
+                    ("gemma-1.1-2b-it", "轻量级文本模型", "10 / 50", "2K / 200K", "20 / 100"),
                     ("gemma-1-2b-it", "轻量级文本模型", "10 / 50", "2K / 200K", "20 / 100"),
+                    ("gemini-nano", "移动端模型", "10 / 50", "2K / 200K", "20 / 100"),
                     ("gemini-1.5-pro", "高级模型", "1 / 5", "100 / 10K", "2 / 10"),
                     ("gemini-1.5-flash", "文本输出模型", "2 / 5", "268 / 250K", "6 / 20"),
                     ("gemini-ultra", "高级模型", "1 / 5", "100 / 10K", "2 / 10"),
