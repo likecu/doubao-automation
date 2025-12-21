@@ -397,69 +397,7 @@ class GeminiOCR:
             return result.get("response", "识别失败")
         return "识别失败"
     
-    def load_model_capabilities(self):
-        """
-        加载模型能力配置文件
-        :return: 模型能力配置字典
-        """
-        if not os.path.exists(self.model_capabilities_file):
-            print(f"警告: {self.model_capabilities_file} 文件不存在，使用默认配置")
-            return {
-                "model_capabilities": {},
-                "model_priority": {
-                    "text_only": [
-                        "gemini-2.5-flash-lite",
-                        "gemini-2.5-flash",
-                        "gemini-1.5-flash",
-                        "gemma-3-2b-it",
-                        "gemma-3-9b-it",
-                        "gemma-2-9b-it",
-                        "gemma-1.1-7b-it",
-                        "gemma-1-7b-it",
-                        "gemma-2-2b-it",
-                        "gemma-1.1-2b-it",
-                        "gemma-1-2b-it",
-                        "gemini-nano",
-                        "gemma-3-12b-it",
-                        "gemma-2-27b-it",
-                        "gemini-2.5-pro",
-                        "gemini-1.5-pro",
-                        "gemini-ultra",
-                        "gemini-experimental"
-                    ]
-                }
-            }
-        
-        try:
-            with open(self.model_capabilities_file, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except json.JSONDecodeError:
-            print(f"警告: {self.model_capabilities_file} 文件格式错误，使用默认配置")
-            return {
-                "model_capabilities": {},
-                "model_priority": {
-                    "text_only": [
-                        "gemini-2.5-flash-lite",
-                        "gemini-2.5-flash",
-                        "gemini-1.5-flash",
-                        "gemma-3-2b-it",
-                        "gemma-3-9b-it",
-                        "gemma-2-9b-it",
-                        "gemma-1.1-7b-it",
-                        "gemma-1-7b-it",
-                        "gemma-2-2b-it",
-                        "gemma-1.1-2b-it",
-                        "gemma-1-2b-it",
-                        "gemini-nano",
-                        "gemma-3-12b-it",
-                        "gemma-2-27b-it",
-                        "gemini-2.5-pro",
-                        "gemini-1.5-pro",
-                        "gemini-ultra",
-                        "gemini-experimental"
-                    ]
-                }
-            }
+
     
     def load_usage_data(self):
         """
@@ -704,44 +642,12 @@ class GeminiOCR:
     
     def select_best_model(self, task_type="text_only"):
         """
-        选择最优模型（优先使用无限制且未达本地限额的模型）
+        选择最优模型（只使用gemma-3-27b-it）
         :param task_type: 任务类型，可选值：text_only, image_supported, document_supported
         :return: 最优模型名称
         """
-        # 获取对应任务类型的模型优先级列表
-        priority_list = self.model_priority.get(task_type, [])
-        
-        # 如果没有找到对应任务类型的模型列表，使用默认模型列表，将gemma-3-27b-it设为最高优先级
-        if not priority_list:
-            priority_list = [
-                "gemma-3-27b-it",  # 用户指定的最高优先级模型
-                "gemini-2.5-flash-lite",
-                "gemini-2.5-flash",
-                "gemini-1.5-flash",
-                "gemma-3-2b-it",
-                "gemma-3-9b-it",
-                "gemma-3-12b-it",
-                "gemma-2-27b-it",
-                "gemma-2-9b-it",
-                "gemma-1.1-7b-it",
-                "gemma-1-7b-it",
-                "gemma-2-2b-it",
-                "gemma-1.1-2b-it",
-                "gemma-1-2b-it",
-                "gemini-nano",
-                "gemini-2.5-pro",
-                "gemini-1.5-pro",
-                "gemini-ultra",
-                "gemini-experimental"
-            ]
-        
-        # 遍历优先级列表，选择第一个可用模型
-        for model_name in priority_list:
-            if self.is_model_available(model_name):
-                return model_name
-        
-        # 如果所有模型都不可用，返回用户指定的最高优先级模型gemma-3-27b
-        return "gemma-3-27b"
+        # 用户要求只使用gemma-3-27b模型
+        return "gemma-3-27b-it"
     
     def check_quota(self, show_details=False):
         """
